@@ -82,7 +82,7 @@ func importChain(ctx *cli.Context) {
 	if err != nil {
 		utils.Fatalf("Import error: %v", err)
 	}
-	fmt.Printf("Import done in %v", time.Since(start))
+	fmt.Printf("@huanke Import done in %v, %s", time.Since(start),ctx.Args().Get(2))
 }
 
 func exportChain(ctx *cli.Context) {
@@ -112,7 +112,7 @@ func exportChain(ctx *cli.Context) {
 	if err != nil {
 		utils.Fatalf("Export error: %v\n", err)
 	}
-	fmt.Printf("Export done in %v", time.Since(start))
+	fmt.Printf("@huanke Export done in %v, %s", time.Since(start),ctx.Args().Get(2))
 }
 
 func removeDB(ctx *cli.Context) {

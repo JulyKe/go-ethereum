@@ -412,7 +412,7 @@ func run(ctx *cli.Context) {
 	if err != nil {
 		utils.Fatalf("%v", err)
 	}
-
+	fmt.Printf("%s", "@huanke main.run() to startEth")
 	startEth(ctx, ethereum)
 	// this blocks the thread
 	ethereum.WaitForShutdown()

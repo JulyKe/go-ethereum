@@ -171,6 +171,7 @@ func NewBlockChain(chainDb ethdb.Database, pow pow.PoW, mux *event.TypeMux) (*Bl
 		}
 	}
 	// Take ownership of this particular state
+	fmt.Printf("%s", "@huanke go to bc.update() at the end of NewBlockChain()")
 	go bc.update()
 	return bc, nil
 }
@@ -698,6 +699,7 @@ func (self *BlockChain) procFutureBlocks() {
 	}
 	if len(blocks) > 0 {
 		types.BlockBy(types.Number).Sort(blocks)
+		fmt.Printf("%s", "@huanke start InsertChain() inside procFutureBlocks()")
 		self.InsertChain(blocks)
 	}
 }
@@ -1057,6 +1059,10 @@ func (self *BlockChain) WriteBlock(block *types.Block) (status writeStatus, err 
 		return NonStatTy, ParentError(block.ParentHash())
 	}
 
+	//huanke add a sleep here to get currentBlock hash later than remote import
+	//time.Sleep(time.Second * 20);
+	//fmt.Printf("%s", "@huanke sleep 20s to remote import happens before local write")
+
 	localTd := self.GetTd(self.currentBlock.Hash())
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
@@ -1208,6 +1214,7 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		}
 
 		txcount += len(block.Transactions())
+		fmt.Printf("%s", "@huanke start WriteBlock() inside InsertChain()")
 		// write the block to the chain and get the status
 		status, err := self.WriteBlock(block)
 		if err != nil {
@@ -1365,6 +1372,7 @@ func (self *BlockChain) postChainEvents(events []interface{}, logs vm.Logs) {
 }
 
 func (self *BlockChain) update() {
+	fmt.Printf("%s", "@huanke start procFutureBlocks() inside update()")
 	futureTimer := time.Tick(5 * time.Second)
 	for {
 		select {

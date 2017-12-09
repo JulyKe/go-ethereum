@@ -172,7 +172,7 @@ func ImportChain(chain *core.BlockChain, fn string) error {
 		}
 	}
 
-	glog.Infoln("Importing blockchain", fn)
+	glog.Infoln("@huanke1 Importing blockchain", fn)
 	fh, err := os.Open(fn)
 	if err != nil {
 		return err
