@@ -194,9 +194,10 @@ func (self *adminApi) ImportChain(req *shared.Request) (interface{}, error) {
 			continue
 		}
 		if _, err := self.ethereum.BlockChain().InsertChain(blocks[:i]); err != nil {
-			return false, fmt.Errorf("invalid block %d: %v", n, err)
+			return false, fmt.Errorf("@huanke invalid block %d: %v", n, err)
 		}
 	}
+	fmt.Println("%s", "@huanke *~~~~~~~~~~~~~ ImportChain is Done ~~~~~~~~~~~~~~~~~*")
 	return true, nil
 }
 

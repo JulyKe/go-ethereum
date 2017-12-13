@@ -296,6 +296,10 @@ func (self *worker) wait() {
 					continue
 				}
 
+				fmt.Println("@huanke *************YOU CAN START ImportChain NOW ***********")
+
+				fmt.Println("@huanke worker: block (#%v / %x / parent: %x) current %x******",block.Number(), block.Hash().Bytes()[:4], block.ParentHash().Bytes()[:4],self.chain.CurrentBlock().Hash().Bytes()[:4])
+				time.Sleep(time.Second * 20);
 				stat, err := self.chain.WriteBlock(block)
 				if err != nil {
 					glog.V(logger.Error).Infoln("error writing block to chain", err)
@@ -346,7 +350,6 @@ func (self *worker) wait() {
 				work.localMinedBlocks = newLocalMinedBlock(block.Number().Uint64(), work.localMinedBlocks)
 			}
 			glog.V(logger.Info).Infof("🔨  Mined %sblock (#%v / %x). %s", stale, block.Number(), block.Hash().Bytes()[:4], confirm)
-
 			self.commitNewWork()
 		}
 	}

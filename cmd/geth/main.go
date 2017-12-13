@@ -54,11 +54,15 @@ const (
 	VersionPatch     = 6
 )
 
+//huanke added a global ethereum intance variable
+var myEthereum  *eth.Ethereum
+
 var (
 	gitCommit       string // set via linker flagg
 	nodeNameVersion string
 	app             *cli.App
 )
+
 
 func init() {
 	if gitCommit == "" {
@@ -83,6 +87,12 @@ recover #number recovers by number
 recover <hex> recovers by hash
 `,
 		},
+		//{
+		//	Action: startMineCmd,
+		//	Name:   "startMine",
+		//	Usage:  "Attempts to mine a new block",
+		//	Description: `start mining outside of the console.`,
+		//},
 		blocktestCommand,
 		importCommand,
 		exportCommand,
@@ -412,7 +422,6 @@ func run(ctx *cli.Context) {
 	if err != nil {
 		utils.Fatalf("%v", err)
 	}
-	fmt.Printf("%s", "@huanke main.run() to startEth")
 	startEth(ctx, ethereum)
 	// this blocks the thread
 	ethereum.WaitForShutdown()
@@ -454,6 +463,8 @@ func console(ctx *cli.Context) {
 	cfg.ExtraData = makeExtra(ctx)
 
 	ethereum, err := eth.New(cfg)
+
+	fmt.Println("%s", "@huanke main.console() to startEth")
 	if err != nil {
 		utils.Fatalf("%v", err)
 	}
@@ -461,6 +472,7 @@ func console(ctx *cli.Context) {
 	client := comms.NewInProcClient(codec.JSON)
 
 	startEth(ctx, ethereum)
+
 	repl := newJSRE(
 		ethereum,
 		ctx.GlobalString(utils.JSpathFlag.Name),
@@ -480,6 +492,7 @@ func console(ctx *cli.Context) {
 	ethereum.Stop()
 	ethereum.WaitForShutdown()
 }
+
 
 func execJSFiles(ctx *cli.Context) {
 	cfg := utils.MakeEthConfig(ClientIdentifier, nodeNameVersion, ctx)
@@ -594,6 +607,7 @@ func startEth(ctx *cli.Context, eth *eth.Ethereum) {
 			utils.Fatalf("%v", err)
 		}
 	}
+
 }
 
 func accountList(ctx *cli.Context) {

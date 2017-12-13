@@ -1,0 +1,14 @@
+there are two nodes : node1 and node2
+node1 has 13 blocks now
+rm -r node2/chaindata, to remove all the blocks on node2
+we start node2 and do local mining:
+./startNode2 --mine
+then attach ipc:node2/geth.ipc to do remote importing as below:
+admin.importChain("node1BlockChain")
+because in worker.go, we already sleep 20s before writeBlock(), which means we delay the mined block to the chain and make importing 13 blocks finish first
+after return ture from importChain() above
+
+the currentBlock is changed in the chain, then the worker's mined block's parent is not equal to the chain's current block anaymore, then
+it will mark the mined block is a stale block and continue mining new blocks, however, almost all future blocks' parents are not equal to
+chain's parent, then leading to the chain stop growing.
+

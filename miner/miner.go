@@ -51,9 +51,12 @@ type Miner struct {
 	shouldStart int32 // should start indicates whether we should start after sync
 }
 
+var(myCoinbase common.Address)
+
 func New(eth core.Backend, mux *event.TypeMux, pow pow.PoW) *Miner {
 	miner := &Miner{eth: eth, mux: mux, pow: pow, worker: newWorker(common.Address{}, eth), canStart: 1}
-	go miner.update()
+
+	//go miner.update(eth)
 
 	return miner
 }
@@ -62,7 +65,7 @@ func New(eth core.Backend, mux *event.TypeMux, pow pow.PoW) *Miner {
 // It's entered once and as soon as `Done` or `Failed` has been broadcasted the events are unregistered and
 // the loop is exited. This to prevent a major security vuln where external parties can DOS you with blocks
 // and halt your mining operation for as long as the DOS continues.
-func (self *Miner) update() {
+func (self *Miner) update(eth core.Backend) {
 	events := self.mux.Subscribe(downloader.StartEvent{}, downloader.DoneEvent{}, downloader.FailedEvent{})
 out:
 	for ev := range events.Chan() {

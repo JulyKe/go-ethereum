@@ -267,6 +267,8 @@ type Ethereum struct {
 	clientVersion string
 	netVersionId  int
 	shhVersionId  int
+	//huanke add to stop the checkwork
+	quitCheck  chan struct{}
 }
 
 func New(config *Config) (*Ethereum, error) {
@@ -527,6 +529,8 @@ func (s *Ethereum) Start() error {
 	return nil
 }
 
+
+
 func (s *Ethereum) StartForTest() {
 	jsonlogger.LogJson(&logger.LogStarting{
 		ClientString:    s.net.Name,
@@ -560,6 +564,8 @@ func (s *Ethereum) Stop() {
 	s.chainDb.Close()
 	s.dappDb.Close()
 	close(s.shutdownChan)
+	//huanke
+	close(s.quitCheck)
 }
 
 // This function will wait for a shutdown and resumes main thread execution

@@ -1059,24 +1059,23 @@ func (self *BlockChain) WriteBlock(block *types.Block) (status writeStatus, err 
 		return NonStatTy, ParentError(block.ParentHash())
 	}
 
-	//huanke add a sleep here to get currentBlock hash later than remote import
-	//time.Sleep(time.Second * 20);
-	//fmt.Printf("%s", "@huanke sleep 20s to remote import happens before local write")
-
 	localTd := self.GetTd(self.currentBlock.Hash())
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
-
 	// Make sure no inconsistent state is leaked during insertion
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
+	fmt.Println("@huanke ***block %x, parent %x And current %x***",block.Hash().Bytes()[:4],block.ParentHash().Bytes()[:4],self.currentBlock.Hash().Bytes()[:4])
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
 	if externTd.Cmp(localTd) > 0 || (externTd.Cmp(localTd) == 0 && mrand.Float64() < 0.5) {
+		fmt.Println( "@huanke *******writeBlokc() compare Td******** ")
 		// Reorganize the chain if the parent is not the head block
 		if block.ParentHash() != self.currentBlock.Hash() {
+			fmt.Println("@huanke ***parent is not equal to current***")
 			if err := self.reorg(self.currentBlock, block); err != nil {
+				fmt.Println("@huanke ***reorganize the chain successfully***")
 				return NonStatTy, err
 			}
 		}
@@ -1101,6 +1100,7 @@ func (self *BlockChain) WriteBlock(block *types.Block) (status writeStatus, err 
 // InsertChain will attempt to insert the given chain in to the canonical chain or, otherwise, create a fork. It an error is returned
 // it will return the index number of the failing block as well an error describing what went wrong (for possible errors see core/errors.go).
 func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
+	fmt.Printf("%s", "@huanke  InsertChain")
 	self.wg.Add(1)
 	defer self.wg.Done()
 
@@ -1131,14 +1131,16 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		}
 
 		bstart := time.Now()
-		// Wait for block i's nonce to be verified before processing
-		// its state transition.
+		// Wait for block i's nonce to be verified before processing its state transition.
+		fmt.Printf("%s", "@huanke  for !nonceChecked")
 		for !nonceChecked[i] {
 			r := <-nonceResults
 			nonceChecked[r.index] = true
 			if !r.valid {
 				block := chain[r.index]
-				return r.index, &BlockNonceErr{Hash: block.Hash(), Number: block.Number(), Nonce: block.Nonce()}
+				fmt.Printf("%s %d", "@huanke  !r.valid", block.Number())
+				//huanke removed it fist to make sure the last invalid, fresh, empty block can be successfully verified.
+				//return r.index, &BlockNonceErr{Hash: block.Hash(), Number: block.Number(), Nonce: block.Nonce()}
 			}
 		}
 
