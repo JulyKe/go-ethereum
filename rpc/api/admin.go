@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc/shared"
 	"github.com/ethereum/go-ethereum/rpc/useragent"
 	"github.com/ethereum/go-ethereum/xeth"
+	"github.com/ethereum/go-ethereum/logger"
 )
 
 const (
@@ -158,6 +159,7 @@ func hasAllBlocks(chain *core.BlockChain, bs []*types.Block) bool {
 }
 
 func (self *adminApi) ImportChain(req *shared.Request) (interface{}, error) {
+	glog.V(logger.Info).Infoln("%s", "@huanke *~~~~~~~~~~~~~ ImportChain is Started ~~~~~~~~~~~~~~~~~*")
 	args := new(ImportExportChainArgs)
 	if err := self.coder.Decode(req.Params, &args); err != nil {
 		return nil, shared.NewDecodeParamError(err.Error())
@@ -197,7 +199,7 @@ func (self *adminApi) ImportChain(req *shared.Request) (interface{}, error) {
 			return false, fmt.Errorf("@huanke invalid block %d: %v", n, err)
 		}
 	}
-	fmt.Println("%s", "@huanke *~~~~~~~~~~~~~ ImportChain is Done ~~~~~~~~~~~~~~~~~*")
+	glog.V(logger.Info).Infoln("%s", "@huanke *~~~~~~~~~~~~~ ImportChain is Done ~~~~~~~~~~~~~~~~~*")
 	return true, nil
 }
 

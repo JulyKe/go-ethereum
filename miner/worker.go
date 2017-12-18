@@ -35,6 +35,8 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/pow"
 	"gopkg.in/fatih/set.v0"
+	"github.com/ethereum/go-ethereum/eventIntercept"
+	"os"
 )
 
 var jsonlogger = logger.NewJsonLogger()
@@ -296,10 +298,20 @@ func (self *worker) wait() {
 					continue
 				}
 
-				fmt.Println("@huanke *************YOU CAN START ImportChain NOW ***********")
+				glog.V(logger.Info).Infoln("@huanke *************YOU CAN START IMPORTING NOW ***********",self.eth.GetSelfId())
 
-				fmt.Println("@huanke worker: block (#%v / %x / parent: %x) current %x******",block.Number(), block.Hash().Bytes()[:4], block.ParentHash().Bytes()[:4],self.chain.CurrentBlock().Hash().Bytes()[:4])
-				time.Sleep(time.Second * 20);
+				var path string ="/tmp/ethereum/finishedImporting"
+				_, err := os.Stat(path)
+				if err==nil {
+					if eventIntercept.IsIntercept {
+						eventIntercept.NewIntercept(self.eth.GetSelfId(),self.eth.GetSelfId(), "WriteBlock",3,0)
+					}
+				}
+
+				//if eventIntercept.IsIntercept {
+				//	eventIntercept.NewIntercept(self.eth.GetSelfId(),self.eth.GetSelfId(), "WriteBlock",3,0)
+				//}
+
 				stat, err := self.chain.WriteBlock(block)
 				if err != nil {
 					glog.V(logger.Error).Infoln("error writing block to chain", err)
@@ -344,6 +356,10 @@ func (self *worker) wait() {
 			var stale, confirm string
 			canonBlock := self.chain.GetBlockByNumber(block.NumberU64())
 			if canonBlock != nil && canonBlock.Hash() != block.Hash() {
+				if eventIntercept.IsIntercept {
+					glog.V(logger.Info).Infoln("@huanke intercept stale block", self.eth.GetSelfId())
+					eventIntercept.UpdateIntercept(self.eth.GetSelfId(),self.eth.GetSelfId(), "StaleBlock",3,0)
+				}
 				stale = "stale "
 			} else {
 				confirm = "Wait 5 blocks for confirmation"

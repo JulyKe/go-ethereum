@@ -115,6 +115,8 @@ type Config struct {
 	MaxPendingPeers int
 	Discovery       bool
 	Port            string
+	//huanke ID
+	SelfId			int
 
 	// Space-separated list of discovery node URLs
 	BootNodes string
@@ -267,8 +269,8 @@ type Ethereum struct {
 	clientVersion string
 	netVersionId  int
 	shhVersionId  int
-	//huanke add to stop the checkwork
-	quitCheck  chan struct{}
+	//huanke add it
+	selfId  	  int
 }
 
 func New(config *Config) (*Ethereum, error) {
@@ -285,6 +287,12 @@ func New(config *Config) (*Ethereum, error) {
 
 	// Open the chain database and perform any upgrades needed
 	chainDb, err := newdb(filepath.Join(config.DataDir, "chaindata"))
+	////----------------------------huanke add self Id to identify each node ------------------
+	//splits := strings.SplitAfter(config.DataDir, "e")
+	//selfID, _:= strconv.Atoi(splits[1])
+	//config.SelfId = selfID
+	//fmt.Println("@huanke DataDir :", selfID)
+	////----------------------------------------------------------------------------------------
 	if err != nil {
 		if errno, ok := err.(syscall.Errno); ok && datadirInUseErrnos[uint(errno)] {
 			err = fmt.Errorf("%v (check if another instance of geth is already running with the same data directory '%s')", err, config.DataDir)
@@ -385,6 +393,7 @@ func New(config *Config) (*Ethereum, error) {
 		GpobaseStepUp:           config.GpobaseStepUp,
 		GpobaseCorrectionFactor: config.GpobaseCorrectionFactor,
 		httpclient:              httpclient.New(config.DocRoot),
+		selfId:					 config.SelfId,
 	}
 
 	if config.PowTest {
@@ -407,7 +416,7 @@ func New(config *Config) (*Ethereum, error) {
 	newPool := core.NewTxPool(eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(config.FastSync, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(config.FastSync, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb, config.SelfId); err != nil {
 		return nil, err
 	}
 	eth.miner = miner.New(eth, eth.EventMux(), eth.pow)
@@ -519,11 +528,14 @@ func (s *Ethereum) Start() error {
 		s.StartAutoDAG()
 	}
 
+	glog.V(logger.Info).Infoln("@huanke Start Protocol Manager", s.selfId)
+	//eventIntercept.NewIntercept(s.selfId, s.selfId,"StartNode",1,1)
 	s.protocolManager.Start()
 
 	if s.whisper != nil {
 		s.whisper.Start()
 	}
+
 
 	glog.V(logger.Info).Infoln("Server started")
 	return nil
@@ -564,8 +576,6 @@ func (s *Ethereum) Stop() {
 	s.chainDb.Close()
 	s.dappDb.Close()
 	close(s.shutdownChan)
-	//huanke
-	close(s.quitCheck)
 }
 
 // This function will wait for a shutdown and resumes main thread execution
@@ -774,3 +784,8 @@ func addMipmapBloomBins(db ethdb.Database) (err error) {
 	glog.V(logger.Info).Infoln("upgrade completed in", time.Since(tstart))
 	return nil
 }
+
+func (self *Ethereum) GetSelfId() int{
+	return self.selfId
+}
+

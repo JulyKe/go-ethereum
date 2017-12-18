@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	forceSyncCycle      = 10 * time.Second // Time interval to force syncs, even if few peers are available
+	//forceSyncCycle      = 10 * time.Second // Time interval to force syncs, even if few peers are available
+	forceSyncCycle      = 100 * time.Second  //huanke increase the syn period time
 	minDesiredPeerCount = 5                // Amount of peers desired to start syncing
 
 	// This is the target size for the packs of transactions sent by txsyncLoop.

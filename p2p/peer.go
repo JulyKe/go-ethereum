@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rlp"
+	"strconv"
 )
 
 const (
@@ -87,9 +88,21 @@ func (p *Peer) ID() discover.NodeID {
 }
 
 // Name returns the node name that the remote node advertised.
-func (p *Peer) Name() string {
+func (p *Peer) Name() string {   //e.g., Geth/node2/v1.3.6-76a2ec85/linux/go1.9.2
 	return p.rw.name
 }
+
+
+//huanke add peer Id to be the identification
+func (p *Peer) PeerId() int {
+	name := p.rw.name
+	arrays := []rune(name)
+	// ... Convert back into a string from rune slice.
+	peerChar := string(arrays[9:10])
+	peerId, _:= strconv.Atoi(peerChar)
+	return peerId
+}
+
 
 // Caps returns the capabilities (supported subprotocols) of the remote peer.
 func (p *Peer) Caps() []Cap {

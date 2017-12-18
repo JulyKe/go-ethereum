@@ -54,9 +54,6 @@ const (
 	VersionPatch     = 6
 )
 
-//huanke added a global ethereum intance variable
-var myEthereum  *eth.Ethereum
-
 var (
 	gitCommit       string // set via linker flagg
 	nodeNameVersion string
@@ -462,9 +459,17 @@ func console(ctx *cli.Context) {
 	cfg := utils.MakeEthConfig(ClientIdentifier, nodeNameVersion, ctx)
 	cfg.ExtraData = makeExtra(ctx)
 
+	//----------------------------huanke add self Id to identify each node ------------------
+	array      := []rune(cfg.DataDir)
+	lastChar  := string(array[len(array)-1:])
+	selfID, _:= strconv.Atoi(lastChar)
+	cfg.SelfId = selfID
+	fmt.Println("@huanke DataDir :", selfID)
+	//----------------------------------------------------------------------------------------
+
 	ethereum, err := eth.New(cfg)
 
-	fmt.Println("%s", "@huanke main.console() to startEth")
+	glog.V(logger.Info).Infoln("%s", "@huanke main.console() to startEth")
 	if err != nil {
 		utils.Fatalf("%v", err)
 	}
@@ -472,7 +477,6 @@ func console(ctx *cli.Context) {
 	client := comms.NewInProcClient(codec.JSON)
 
 	startEth(ctx, ethereum)
-
 	repl := newJSRE(
 		ethereum,
 		ctx.GlobalString(utils.JSpathFlag.Name),

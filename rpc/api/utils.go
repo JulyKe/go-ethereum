@@ -153,6 +153,7 @@ var (
 	}
 )
 
+
 // Parse a comma separated API string to individual api's
 func ParseApiString(apistr string, codec codec.Codec, xeth *xeth.XEth, eth *eth.Ethereum) ([]shared.EthereumApi, error) {
 	if len(strings.TrimSpace(apistr)) == 0 {

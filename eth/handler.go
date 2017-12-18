@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/pow"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/eventIntercept"
 )
 
 const (
@@ -82,11 +83,14 @@ type ProtocolManager struct {
 	// and processing
 	wg   sync.WaitGroup
 	quit bool
+
+	//huanke add self Id
+	selfId int
 }
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(fastSync bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
+func NewProtocolManager(fastSync bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database,selfId int) (*ProtocolManager, error) {
 	// Figure out whether to allow fast sync or not
 	if fastSync && blockchain.CurrentBlock().NumberU64() > 0 {
 		glog.V(logger.Info).Infof("blockchain not empty, fast sync disabled")
@@ -100,11 +104,13 @@ func NewProtocolManager(fastSync bool, networkId int, mux *event.TypeMux, txpool
 		txpool:     txpool,
 		blockchain: blockchain,
 		chaindb:    chaindb,
+		selfId: 	selfId,
 		peers:      newPeerSet(),
 		newPeerCh:  make(chan *peer, 1),
 		txsyncCh:   make(chan *txsync),
 		quitSync:   make(chan struct{}),
 	}
+
 	// Initiate a sub-protocol for every implemented version we can handle
 	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
 	for i, version := range ProtocolVersions {
@@ -700,6 +706,10 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 		// Send the block to a subset of our peers
 		transfer := peers[:int(math.Sqrt(float64(len(peers))))]
 		for _, peer := range transfer {
+			if eventIntercept.IsIntercept {
+				glog.V(logger.Info).Infof("@huanke SendNewBlockHashes", pm.selfId, peer.PeerId())
+				eventIntercept.NewIntercept(pm.selfId,peer.PeerId(),"NewBlockMsg",1,1)
+			}
 			peer.SendNewBlock(block, td)
 		}
 		glog.V(logger.Detail).Infof("propagated block %x to %d peers in %v", hash[:4], len(transfer), time.Since(block.ReceivedAt))
@@ -710,6 +720,10 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 			if peer.version < eth62 {
 				peer.SendNewBlockHashes61([]common.Hash{hash})
 			} else {
+				if eventIntercept.IsIntercept {
+					glog.V(logger.Info).Infof("@huanke SendNewBlockHashes", pm.selfId, peer.PeerId())
+					eventIntercept.NewIntercept(pm.selfId,peer.PeerId(),"NewBlockHashesMsg",1,1)
+				}
 				peer.SendNewBlockHashes([]common.Hash{hash}, []uint64{block.NumberU64()})
 			}
 		}
@@ -724,6 +738,10 @@ func (pm *ProtocolManager) BroadcastTx(hash common.Hash, tx *types.Transaction) 
 	peers := pm.peers.PeersWithoutTx(hash)
 	//FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for _, peer := range peers {
+		if eventIntercept.IsIntercept {
+			glog.V(logger.Info).Infof("@huanke SendTransactions", pm.selfId, peer.PeerId())
+			eventIntercept.NewIntercept(pm.selfId, peer.PeerId(),"TxMsg",1,1)
+		}
 		peer.SendTransactions(types.Transactions{tx})
 	}
 	glog.V(logger.Detail).Infoln("broadcast tx to", len(peers), "peers")

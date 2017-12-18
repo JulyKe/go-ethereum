@@ -56,7 +56,7 @@ var(myCoinbase common.Address)
 func New(eth core.Backend, mux *event.TypeMux, pow pow.PoW) *Miner {
 	miner := &Miner{eth: eth, mux: mux, pow: pow, worker: newWorker(common.Address{}, eth), canStart: 1}
 
-	//go miner.update(eth)
+	go miner.update(eth)
 
 	return miner
 }
