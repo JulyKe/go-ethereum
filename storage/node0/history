@@ -1,0 +1,8 @@
+admin.nodeInfo.enode
+account
+admin
+eth
+personal.newAccount
+personal.newAccount()
+eth.getBalance(eth.accounts[0])
+eth.blockNumber

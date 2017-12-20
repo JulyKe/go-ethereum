@@ -1,0 +1,10 @@
+=============== Dec 19, 2017 (CST) ===============
+21:08:57.448409 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+21:08:57.448511 db@open opening
+21:08:57.448549 journal@recovery F·1
+21:08:57.448886 journal@recovery recovering @5
+21:08:57.451083 mem@flush created L0@7 N·7 S·404B "blo..um-,v27":"\xc5\xd2F..\x85\xa4p,v21"
+21:08:57.451730 db@janitor F·4 G·0
+21:08:57.451745 db@open done T·3.226324ms
+21:09:01.226272 db@close closing
+21:09:01.226496 db@close done T·211.959µs

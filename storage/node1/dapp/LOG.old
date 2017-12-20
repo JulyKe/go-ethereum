@@ -1,0 +1,7 @@
+=============== Dec 15, 2017 (CST) ===============
+20:44:37.150414 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+20:44:37.150620 db@open opening
+20:44:37.150723 journal@recovery F·1
+20:44:37.151616 journal@recovery recovering @196
+20:44:37.153676 db@janitor F·2 G·0
+20:44:37.153708 db@open done T·3.072369ms

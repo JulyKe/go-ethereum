@@ -1145,6 +1145,7 @@ func (self *BlockChain) postChainEvents(events []interface{}, logs vm.Logs) {
 			// We need some control over the mining operation. Acquiring locks and waiting for the miner to create new block takes too long
 			// and in most cases isn't even necessary.
 			if self.LastBlockHash() == event.Hash {
+				fmt.Println("@huanke worker.go post ChainHeadEvent")
 				self.eventMux.Post(ChainHeadEvent{event.Block})
 			}
 		}

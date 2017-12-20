@@ -322,6 +322,7 @@ func (self *worker) wait() {
 					self.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 
 					if stat == core.CanonStatTy {
+						fmt.Println("@huanke worker.go post ChainHeadEvent")
 						self.mux.Post(core.ChainHeadEvent{Block: block})
 						self.mux.Post(logs)
 					}
