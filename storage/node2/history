@@ -1,0 +1,127 @@
+eth
+personal
+personal.listAccounts
+eth.getBalance(eth.accounts[0])
+personal.newAccount()
+account22
+eth.getBalance(eth.accounts[0])
+eth.getBalance(eth.accounts[1])
+eth.sendTransaction(from: eth.accounts[0], to: eth.accounts[1]: value: 20)
+eth.sendTransaction(from: eth.accounts[0], to: eth.accounts[1], value: 20)
+eth.sendTransaction(from: eth.accounts[0], to: eth.accounts[1], value: 10)
+eth.sendTransaction(from: eth.accounts[0], to: eth.accounts[1], value: "10")
+eth.sendTransaction(eth.accounts[0],  eth.accounts[1], "10")
+eth.sendTransaction(from: eth.accounts[0], to: eth.accounts[1], value: "10")
+personal.unlockAccount(eth.accounts[0])
+eth.sendTransaction(from: eth.accounts[0], to: eth.accounts[1], value: "10")
+eth.sendTransaction(from: eth.accounts[0], to: eth.accounts[1], value: '10')
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 10})
+eth.pendingTransactions
+personal.listAccounts
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 10})
+eth.pendingTransactions
+miner.start()
+miner.stop()
+miner
+eth
+eth.blockNumber
+eth.getBlock(0)
+eth.getBlock(1)
+eth.pendingTransactions
+miner.start()
+eth.stop()
+eth.blockNumber
+eth.getBalance(eth.getTransaction)
+eth.getBalance(eth.accounts[0])
+eth.getBalance(eth.accounts[1])
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 20})
+eth.pendingTransactions
+admin
+eth
+eth.getBlockN
+eth.getBlockNumber
+eth.getBlockNumber()
+eth.getBlock(2)
+eth.blockNumber
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 22})
+et
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.blockNumber
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eixt
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.blockNumber
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.sendTransaction({from: eth.accounts[0], to: eth.accounts[1], value: 2})
+eth.pendingTransactions
+eth.blockNumber
+admin.importChain("node1BlockChain")
+admin.importChain("node2BlockChain")
+eth.blockNumber
+eth.getBlock(165)
+eth.getBlock(164)
+eth.blockNumber
+admin.importChain("node1BlockChain")
+eth.blockNumber
+eth.getBlock(1)
+eth.getBlock(0)
+eth.blockNumber
+admin.importChain("node1BlockChain")
+eth.blockNumber
+admin.importChain(node1BlockChain)
+admin.importChain("node1BlockChain")
+eth.blockNumber
+admin.exportChain("node2BlockChain")
+eth.blockNumber
+admin.exportChain("node2BlockChain")
+admin.exportChain("node1BlockChain")
+admin.importChain("node2BlockChain")
+eth.blockNumber
+admin.importChain("node1BlockChain")
+eth.blockNumber
+admin.importChain("node2BlockChain")
+eth.blockNumber
+eth.getBlock(226)
+eth.blockNumber
+eth.getBlock(13)
+eth.blockNumber
+admin.nodeInfo.enode
+eth
+net
+net.peerCount
+eth.blockNumber
+eth.getBlock(15)
+eth.blockNumber
+net.peerCount
+[1;5A
+net.peerCount
+eth.blockNumber
+net.peerCount
+
+eth.blockNumber
