@@ -1,0 +1,6 @@
+eth.accounts
+admin.nodeInfo
+EXIT
+net.peerCount
+personal.newAccount()
+eth.pendingTransactions

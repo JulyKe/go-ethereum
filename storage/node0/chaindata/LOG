@@ -1,0 +1,17 @@
+=============== Jan 21, 2018 (CST) ===============
+17:20:16.144271 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+17:20:16.144487 db@open opening
+17:20:16.144546 journal@recovery F·1
+17:20:16.145318 journal@recovery recovering @9
+17:20:16.146580 mem@flush created L0@11 N·7 S·399B "blo..um-,v30183":"\xc5\xd2F..\x85\xa4p,v30177"
+17:20:16.147872 db@janitor F·6 G·0
+17:20:16.147897 db@open done T·3.392402ms
+17:20:16.147989 table@compaction L0·4 -> L1·0 S·1MiB Q·30184
+17:20:16.234493 table@build created L1@14 N·21269 S·1MiB "\x00\x00\xae..\x82\x88\x11,v18284":"\xff\xfc\x94..\xa5\x05\xa1,v18413"
+17:20:16.236063 table@compaction committed F-3 S-41KiB Ke·0 D·8911 T·88.021912ms
+17:20:16.236177 table@remove removed @11
+17:20:16.236249 table@remove removed @8
+17:20:16.236306 table@remove removed @5
+17:20:16.236499 table@remove removed @2
+17:34:56.660057 db@close closing
+17:34:56.660786 db@close done T·720.673µs

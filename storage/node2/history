@@ -1,0 +1,10 @@
+admin.nodeInfo
+net.peerCount
+eth.blockNumber
+account
+accounts
+eth.accounts
+admin
+personal.newAccount
+personal.newAccount()
+eth.pendingTransactions

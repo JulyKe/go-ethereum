@@ -1,2 +1,2 @@
 #! /bin/bash
-./build/bin/geth --datadir node$1 init genesis.json
+./build/bin/geth --datadir storage/node$1 init genesis.json
