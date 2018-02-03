@@ -337,6 +337,7 @@ func (d *Downloader) Synchronise(id string, head common.Hash, td *big.Int, mode 
 // checks fail an error will be returned. This method is synchronous
 func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode SyncMode) error {
 	// Mock out the synchronisation if testing
+	fmt.Println("@huanke Downloader.synchronise()", mode.String() )
 	if d.synchroniseMock != nil {
 		return d.synchroniseMock(id, hash)
 	}
@@ -400,6 +401,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 // syncWithPeer starts a block synchronization based on the hash chain from the
 // specified peer and head hash.
 func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.Int) (err error) {
+	fmt.Println("@huanke Downloader.syncWithPeer()" )
 	d.mux.Post(StartEvent{})
 	defer func() {
 		// reset on error
@@ -413,7 +415,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 		return errTooOld
 	}
 
-	log.Debug("Synchronising with the network", "peer", p.id, "eth", p.version, "head", hash, "td", td, "mode", d.mode)
+	log.Info("Synchronising with the network", "peer", p.id, "eth", p.version, "head", hash, "td", td, "mode", d.mode)
 	defer func(start time.Time) {
 		log.Debug("Synchronisation terminated", "elapsed", time.Since(start))
 	}(time.Now())
@@ -440,8 +442,10 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 	pivot := uint64(0)
 	switch d.mode {
 	case LightSync:
+		fmt.Println("@huanke Downloader.case LightSync: " )
 		pivot = height
 	case FastSync:
+		fmt.Println("@huanke Downloader.case FastSync: " )
 		// Calculate the new fast/slow sync pivot point
 		if d.fsPivotLock == nil {
 			pivotOffset, err := rand.Int(rand.Reader, big.NewInt(int64(fsPivotInterval)))
@@ -465,8 +469,10 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 		}
 		log.Debug("Fast syncing until pivot block", "pivot", pivot)
 	}
+	fmt.Println("@huanke ***********Pivot*** ", pivot, height, origin )
 	d.queue.Prepare(origin+1, d.mode, pivot, latest)
 	if d.syncInitHook != nil {
+		fmt.Println("@huanke  d.syncInitHook !=nil" )
 		d.syncInitHook(origin, height)
 	}
 
@@ -477,8 +483,10 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 		func() error { return d.processHeaders(origin+1, td) },
 	}
 	if d.mode == FastSync {
+		fmt.Println("d.mode == FastSync" )
 		fetchers = append(fetchers, func() error { return d.processFastSyncContent(latest) })
 	} else if d.mode == FullSync {
+		fmt.Println("@huanke  d.mode == FullSync" )
 		fetchers = append(fetchers, d.processFullSyncContent)
 	}
 	err = d.spawnSync(fetchers)
@@ -1365,8 +1373,8 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 // processFastSyncContent takes fetch results from the queue and writes them to the
 // database. It also controls the synchronisation of state nodes of the pivot block.
 func (d *Downloader) processFastSyncContent(latest *types.Header) error {
-	// Start syncing state of the reported head block.
-	// This should get us most of the state of the pivot block.
+	fmt.Println("@huanke Downloader.processFastSyncContent() " )
+	// Start syncing state of the reported head block. This should get us most of the state of the pivot block.
 	stateSync := d.syncState(latest.Root)
 	defer stateSync.Cancel()
 	go func() {

@@ -219,6 +219,7 @@ func (p *peer) RequestBodies(hashes []common.Hash) error {
 // data, corresponding to the specified hashes.
 func (p *peer) RequestNodeData(hashes []common.Hash) error {
 	p.Log().Debug("Fetching batch of state data", "count", len(hashes))
+	fmt.Println("@huanke peer.RequestNodeData()")
 	return p2p.Send(p.rw, GetNodeDataMsg, hashes)
 }
 

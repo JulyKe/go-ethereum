@@ -26,10 +26,11 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"fmt"
 )
 
 const (
-	forceSyncCycle      = 10 * time.Second // Time interval to force syncs, even if few peers are available
+	forceSyncCycle      = 15 * time.Second // Time interval to force syncs, even if few peers are available
 	minDesiredPeerCount = 5                // Amount of peers desired to start syncing
 
 	// This is the target size for the packs of transactions sent by txsyncLoop.
@@ -150,6 +151,7 @@ func (pm *ProtocolManager) syncer() {
 
 		case <-forceSync:
 			// Force a sync even if not enough peers are present
+			fmt.Println("@huanke syncer() --> go pm.synchronise(pm.peers.BestPeer())" )
 			go pm.synchronise(pm.peers.BestPeer())
 
 		case <-pm.noMorePeers:
@@ -162,6 +164,7 @@ func (pm *ProtocolManager) syncer() {
 func (pm *ProtocolManager) synchronise(peer *peer) {
 	// Short circuit if no peers are available
 	if peer == nil {
+		fmt.Println("@huanke  peer == nil " )
 		return
 	}
 	// Make sure the peer's TD is higher than our own
@@ -169,13 +172,16 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	td := pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 
 	pHead, pTd := peer.Head()
-	if pTd.Cmp(td) <= 0 {
+	//huanke if pTd.Cmp(td) <= 0 {
+	if pTd.Cmp(td) < 0 {
+		fmt.Println("@huanke  if pTd.Cmp(td) <= 0 ")
 		return
 	}
 	// Otherwise try to sync with the downloader
 	mode := downloader.FullSync
 	if atomic.LoadUint32(&pm.fastSync) == 1 {
 		// Fast sync was explicitly requested, and explicitly granted
+		fmt.Println("@huanke if mode = downloader.FastSync" )
 		mode = downloader.FastSync
 	} else if currentBlock.NumberU64() == 0 && pm.blockchain.CurrentFastBlock().NumberU64() > 0 {
 		// The database seems empty as the current block is the genesis. Yet the fast
@@ -185,12 +191,14 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 		// however it's safe to reenable fast sync.
 		atomic.StoreUint32(&pm.fastSync, 1)
 		mode = downloader.FastSync
+		fmt.Println("@huanke else mode = downloader.FastSync" )
 	}
 	if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
 		return
 	}
 	atomic.StoreUint32(&pm.acceptTxs, 1) // Mark initial sync done
 	if head := pm.blockchain.CurrentBlock(); head.NumberU64() > 0 {
+		fmt.Println("@huanke  if head.NumberU64() > 0" )
 		// We've completed a sync cycle, notify all peers of new state. This path is
 		// essential in star-topology networks where a gateway node needs to notify
 		// all its out-of-date peers of the availability of a new block. This failure
@@ -201,6 +209,7 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	}
 	// If fast sync was enabled, and we synced up, disable it
 	if atomic.LoadUint32(&pm.fastSync) == 1 {
+		fmt.Println("@huanke  if atomic.LoadUint32(&pm.fastSync) == 1" )
 		// Disable fast sync if we indeed have something in our chain
 		if pm.blockchain.CurrentBlock().NumberU64() > 0 {
 			log.Info("Fast sync complete, auto disabling")

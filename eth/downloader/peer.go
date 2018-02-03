@@ -217,6 +217,7 @@ func (p *peerConnection) FetchNodeData(hashes []common.Hash) error {
 	}
 	p.stateStarted = time.Now()
 
+	fmt.Println("@huanke go p.peer.RequestNodeData(hashes)")
 	go p.peer.RequestNodeData(hashes)
 
 	return nil
@@ -346,8 +347,7 @@ func (p *peerConnection) Lacks(hash common.Hash) bool {
 	return ok
 }
 
-// peerSet represents the collection of active peer participating in the chain
-// download procedure.
+// peerSet represents the collection of active peer participating in the chain download procedure.
 type peerSet struct {
 	peers       map[string]*peerConnection
 	newPeerFeed event.Feed

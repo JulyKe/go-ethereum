@@ -1,0 +1,10 @@
+admin.nodeInfo
+net.peerCount
+eth.blockNumber
+miner.start()
+miner
+miner.start()
+net.peerCount
+eth.blockNumber
+eth.accounts
+net.peerCount

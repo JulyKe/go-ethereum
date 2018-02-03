@@ -90,6 +90,8 @@ type ProtocolManager struct {
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
 	wg sync.WaitGroup
+	//huanke hack it
+	counter     int
 }
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
@@ -110,6 +112,7 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 		txsyncCh:    make(chan *txsync),
 		quitSync:    make(chan struct{}),
 	}
+	manager.counter=1
 	// Figure out whether to allow fast sync or not
 	if mode == downloader.FastSync && blockchain.CurrentBlock().NumberU64() > 0 {
 		log.Warn("Blockchain not empty, fast sync disabled")
@@ -176,6 +179,7 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 	}
 	manager.fetcher = fetcher.New(blockchain.GetBlockByHash, validator, manager.BroadcastBlock, heighter, inserter, manager.removePeer)
 
+
 	return manager, nil
 }
 
@@ -196,6 +200,11 @@ func (pm *ProtocolManager) removePeer(id string) {
 	if peer != nil {
 		peer.Peer.Disconnect(p2p.DiscUselessPeer)
 	}
+	////haunke add it
+	//if pm.counter!=1 {
+	//	fmt.Println("@huanke ***pm.downloader.RegisterPeer(peer.id, peer.version, peer)**")
+	//	pm.downloader.RegisterPeer(peer.id, peer.version, peer)
+	//}
 }
 
 func (pm *ProtocolManager) Start() {
@@ -505,31 +514,38 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case p.version >= eth63 && msg.Code == GetNodeDataMsg:
-		// Decode the retrieval message
-		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
-		if _, err := msgStream.List(); err != nil {
-			return err
-		}
-		// Gather state data until the fetch or network limits is reached
-		var (
-			hash  common.Hash
-			bytes int
-			data  [][]byte
-		)
-		for bytes < softResponseLimit && len(data) < downloader.MaxStateFetch {
-			// Retrieve the hash of the next state entry
-			if err := msgStream.Decode(&hash); err == rlp.EOL {
-				break
-			} else if err != nil {
-				return errResp(ErrDecode, "msg %v: %v", msg, err)
+		if pm.counter==1 {
+			fmt.Println("@huanke ************Start Sleep******** 10s " , pm.counter)
+			time.Sleep(time.Millisecond*65000)
+			pm.counter = pm.counter+1
+		}else {
+			fmt.Println("@huanke  ************Receive GetNodeDataMsg")
+			// Decode the retrieval message
+			msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
+			if _, err := msgStream.List(); err != nil {
+				return err
 			}
-			// Retrieve the requested state entry, stopping if enough was found
-			if entry, err := pm.chaindb.Get(hash.Bytes()); err == nil {
-				data = append(data, entry)
-				bytes += len(entry)
+			// Gather state data until the fetch or network limits is reached
+			var (
+				hash common.Hash
+				bytes int
+				data  [][]byte
+			)
+			for bytes < softResponseLimit && len(data) < downloader.MaxStateFetch {
+				// Retrieve the hash of the next state entry
+				if err := msgStream.Decode(&hash); err == rlp.EOL {
+					break
+				} else if err != nil {
+					return errResp(ErrDecode, "msg %v: %v", msg, err)
+				}
+				// Retrieve the requested state entry, stopping if enough was found
+				if entry, err := pm.chaindb.Get(hash.Bytes()); err == nil {
+					data = append(data, entry)
+					bytes += len(entry)
+				}
 			}
+			return p.SendNodeData(data)
 		}
-		return p.SendNodeData(data)
 
 	case p.version >= eth63 && msg.Code == NodeDataMsg:
 		// A batch of node state data arrived to one of our previous requests

@@ -60,6 +60,7 @@ func (d *Downloader) syncState(root common.Hash) *stateSync {
 	s := newStateSync(d, root)
 	select {
 	case d.stateSyncStart <- s:
+		fmt.Println("@huanke syncState(), write newStateSync to stateSyncStart Channel" )
 	case <-d.quitCh:
 		s.err = errCancelStateFetch
 		close(s.done)
@@ -73,6 +74,7 @@ func (d *Downloader) stateFetcher() {
 	for {
 		select {
 		case s := <-d.stateSyncStart:
+			fmt.Println("@huanke syncState(), read newStateSync to stateSyncStart Channel" )
 			for next := s; next != nil; {
 				next = d.runStateSync(next)
 			}
@@ -87,6 +89,7 @@ func (d *Downloader) stateFetcher() {
 // runStateSync runs a state synchronisation until it completes or another root
 // hash is requested to be switched over to.
 func (d *Downloader) runStateSync(s *stateSync) *stateSync {
+	fmt.Println("@huanke Downloader.runStateSync()" )
 	var (
 		active   = make(map[string]*stateReq) // Currently in-flight requests
 		finished []*stateReq                  // Completed or failed requests
@@ -118,17 +121,21 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 		select {
 		// The stateSync lifecycle:
 		case next := <-d.stateSyncStart:
+			fmt.Println("@huanke runStateSync() read stateSyncStart channel and return " )
 			return next
 
 		case <-s.done:
+			fmt.Println("@huanke case <-s.done:" )
 			return nil
 
 		// Send the next finished request to the current sync:
 		case deliverReqCh <- deliverReq:
+			fmt.Println("@huanke case deliverReqCh <- deliverReq( finished[0]) :", len(finished) )
 			finished = append(finished[:0], finished[1:]...)
 
 		// Handle incoming state packs:
 		case pack := <-d.stateCh:
+			fmt.Println("@huanke case pack := <-d.stateCh:" )
 			// Discard any data not requested (or previsouly timed out)
 			req := active[pack.PeerId()]
 			if req == nil {
@@ -144,29 +151,36 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 
 		// Handle timed-out requests:
 		case req := <-timeout:
+			fmt.Println("@huanke case req := <-timeout:" )
 			// If the peer is already requesting something else, ignore the stale timeout.
 			// This can happen when the timeout and the delivery happens simultaneously,
 			// causing both pathways to trigger.
 			if active[req.peer.id] != req {
+				fmt.Println("@huanke active[req.peer.id] != req" )
 				continue
 			}
 			// Move the timed out data back into the download queue
 			finished = append(finished, req)
+			fmt.Println("@huanke finished = append(finished, req)" )
 			delete(active, req.peer.id)
+			fmt.Println("@huanke delete(active, req.peer.id)" )
 
 		// Track outgoing state requests:
 		case req := <-d.trackStateReq:
+			fmt.Println("@huanke case req := <-d.trackStateReq:" )
 			// If an active request already exists for this peer, we have a problem. In
 			// theory the trie node schedule must never assign two requests to the same
-			// peer. In practive however, a peer might receive a request, disconnect and
+			// peer. In practice, however, a peer might receive a request, disconnect and
 			// immediately reconnect before the previous times out. In this case the first
 			// request is never honored, alas we must not silently overwrite it, as that
 			// causes valid requests to go missing and sync to get stuck.
 			if old := active[req.peer.id]; old != nil {
 				log.Warn("Busy peer assigned new state fetch", "peer", old.peer.id)
+				fmt.Println("@huanke ##########Busy peer assigned new state fetch", "peer", len(finished) )
 
 				// Make sure the previous one doesn't get siletly lost
 				finished = append(finished, old)
+				fmt.Println("@huanke add the old task to finished queue", len(finished) )
 			}
 			// Start a timer to notify the sync loop if the peer stalled.
 			req.timer = time.AfterFunc(req.timeout, func() {
@@ -178,6 +192,7 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 				}
 			})
 			active[req.peer.id] = req
+			fmt.Println("@huanke active[req.peer.id] = req ", len(active) )
 		}
 	}
 }
@@ -198,7 +213,7 @@ type stateSync struct {
 	err        error          // Any error hit during sync (set before completion)
 }
 
-// stateTask represents a single trie node download taks, containing a set of
+// stateTask represents a single trie node download task, containing a set of
 // peers already attempted retrieval from to detect stalled syncs and abort.
 type stateTask struct {
 	attempts map[string]struct{}
@@ -246,30 +261,36 @@ func (s *stateSync) Cancel() error {
 // and timeouts.
 func (s *stateSync) loop() error {
 	// Listen for new peer events to assign tasks to them
+	fmt.Println("@huanke stateSync.loop()" )
 	newPeer := make(chan *peerConnection, 1024)
 	peerSub := s.d.peers.SubscribeNewPeers(newPeer)
 	defer peerSub.Unsubscribe()
 
 	// Keep assigning new tasks until the sync completes or aborts
 	for s.sched.Pending() > 0 {
+		fmt.Println("@huanke for s.sched.Pending() > 0" )
 		if err := s.assignTasks(); err != nil {
 			return err
 		}
 		// Tasks assigned, wait for something to happen
 		select {
 		case <-newPeer:
+			fmt.Println("@huanke case <-newPeer:" )
 			// New peer arrived, try to assign it download tasks
 
 		case <-s.cancel:
+			fmt.Println("@huanke case <-s.cancel:" )
 			return errCancelStateFetch
 
 		case req := <-s.deliver:
+			fmt.Println("@huanke case req := <-s.deliver:" )
 			// Response or timeout triggered, drop the peer if stalling
 			log.Trace("Received node data response", "peer", req.peer.id, "count", len(req.response), "timeout", req.timedOut())
 			if len(req.items) <= 2 && req.timedOut() {
 				// 2 items are the minimum requested, if even that times out, we've no use of
 				// this peer at the moment.
-				log.Warn("Stalling state sync, dropping peer", "peer", req.peer.id)
+				log.Info("Stalling state sync, dropping peer", "peer", req.peer.id)
+				fmt.Println("Stalling state sync, dropping peer", "peer", req.peer.id)
 				s.d.dropPeer(req.peer.id)
 			}
 			// Process all the received blobs and check for stale delivery
@@ -287,11 +308,12 @@ func (s *stateSync) loop() error {
 	return nil
 }
 
-// assignTasks attempts to assing new tasks to all idle peers, either from the
+// assignTasks attempts to assign new tasks to all idle peers, either from the
 // batch currently being retried, or fetching new data from the trie sync itself.
 func (s *stateSync) assignTasks() error {
 	// Iterate over all idle peers and try to assign them state fetches
 	peers, _ := s.d.peers.NodeDataIdlePeers()
+	fmt.Println("@huanke stateSync.assignTasks()" )
 	for _, p := range peers {
 		// Assign a batch of fetches proportional to the estimated latency/bandwidth
 		cap := p.NodeDataCapacity(s.d.requestRTT())
@@ -304,6 +326,7 @@ func (s *stateSync) assignTasks() error {
 
 			select {
 			case s.d.trackStateReq <- req:
+				fmt.Println("@huanke case s.d.trackStateReq <- req")
 				req.peer.FetchNodeData(req.items)
 			case <-s.cancel:
 			}
