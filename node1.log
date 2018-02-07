@@ -1,0 +1,30 @@
+I0119 14:17:21.046859 ethdb/database.go:83] Alloted 128MB cache and 1024 file handles to storage/node1/chaindata
+I0119 14:17:21.054200 ethdb/database.go:176] closed db:storage/node1/chaindata
+I0119 14:17:21.054701 ethdb/database.go:83] Alloted 128MB cache and 1024 file handles to storage/node1/chaindata
+I0119 14:17:21.065491 ethdb/database.go:83] Alloted 16MB cache and 16 file handles to storage/node1/dapp
+I0119 14:17:21.067090 eth/backend.go:178] Protocol Versions: [63 62], Network Id: 1900
+I0119 14:17:21.067104 eth/backend.go:188] selfId: %!(EXTRA string=1)
+I0119 14:17:21.067174 eth/backend.go:217] Blockchain DB Version: 3
+I0119 14:17:21.067647 core/blockchain.go:215] Last header: #11 [4d55faf5…] TD=1441859
+I0119 14:17:21.067662 core/blockchain.go:216] Last block: #11 [4d55faf5…] TD=1441859
+I0119 14:17:21.067669 core/blockchain.go:217] Fast block: #11 [4d55faf5…] TD=1441859
+I0119 14:17:21.067763 eth/handler.go:187] @huanke manaager.fetcher
+I0119 14:17:21.068082 core/tx_pool.go:266] @huanke Pending() %!(EXTRA int=0)
+I0119 14:17:21.068112 core/tx_pool.go:198] @huanke node: < %!(EXTRA int=1, string=pending len: , int=0)
+I0119 14:17:21.068190 miner/worker.go:517] @huanke ==========================> commitNewWork  0
+I0119 14:17:21.068201 core/tx_pool.go:266] @huanke Pending() %!(EXTRA int=0)
+I0119 14:17:21.068544 p2p/server.go:314] Starting Server
+I0119 14:17:21.069833 node/node.go:366] HTTP endpoint opened: http://localhost:8541
+I0119 14:17:21.073465 p2p/server.go:557] Listening on [::]:30301
+I0119 14:17:21.073558 node/node.go:296] IPC endpoint opened: storage/node1/geth.ipc
+I0119 14:17:22.446902 core/tx_pool.go:266] @huanke Pending() %!(EXTRA int=0)
+I0119 14:17:23.642854 core/tx_pool.go:266] @huanke Pending() %!(EXTRA int=0)
+I0119 14:23:05.461189 node/node.go:383] HTTP endpoint closed: http://localhost:8541
+I0119 14:23:05.461373 node/node.go:328] IPC endpoint closed: storage/node1/geth.ipc
+I0119 14:23:05.461425 core/blockchain.go:579] Chain manager stopped
+I0119 14:23:05.461452 eth/handler.go:240] Stopping ethereum protocol handler...
+I0119 14:23:05.461746 eth/handler.go:261] Ethereum protocol handler stopped
+I0119 14:23:05.461867 core/tx_pool.go:218] Transaction pool stopped
+I0119 14:23:05.461927 eth/backend.go:514] Automatic pregeneration of ethash DAG OFF (ethash dir: /home/huanke/.ethash)
+I0119 14:23:05.462275 ethdb/database.go:176] closed db:storage/node1/chaindata
+I0119 14:23:05.462449 ethdb/database.go:176] closed db:storage/node1/dapp

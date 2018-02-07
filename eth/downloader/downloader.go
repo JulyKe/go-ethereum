@@ -279,6 +279,7 @@ func (d *Downloader) UnregisterPeer(id string) error {
 // adding various sanity checks as well as wrapping it with various log entries.
 func (d *Downloader) Synchronise(id string, head common.Hash, td *big.Int, mode SyncMode) error {
 	glog.V(logger.Detail).Infof("Attempting synchronisation: %v, head [%x…], TD %v", id, head[:4], td)
+	//fmt.Println("@huanke Downloader.Synchronise " )
 
 	err := d.synchronise(id, head, td, mode)
 	switch err {
@@ -365,9 +366,9 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 	return d.syncWithPeer(p, hash, td)
 }
 
-// syncWithPeer starts a block synchronization based on the hash chain from the
-// specified peer and head hash.
+// syncWithPeer starts a block synchronization based on the hash chain from the specified peer and head hash.
 func (d *Downloader) syncWithPeer(p *peer, hash common.Hash, td *big.Int) (err error) {
+	fmt.Println("@huanke syncWithPeer ")
 	d.mux.Post(StartEvent{})
 	defer func() {
 		// reset on error
@@ -381,7 +382,7 @@ func (d *Downloader) syncWithPeer(p *peer, hash common.Hash, td *big.Int) (err e
 		return errTooOld
 	}
 
-	glog.V(logger.Debug).Infof("Synchronising with the network using: %s [eth/%d]", p.id, p.version)
+	glog.V(logger.Info).Infof("Synchronising with the network using: %s [eth/%d]", p.id, p.version)
 	defer func(start time.Time) {
 		glog.V(logger.Debug).Infof("Synchronisation terminated after %v", time.Since(start))
 	}(time.Now())
@@ -408,8 +409,10 @@ func (d *Downloader) syncWithPeer(p *peer, hash common.Hash, td *big.Int) (err e
 	pivot := uint64(0)
 	switch d.mode {
 	case LightSync:
+		fmt.Println("@huanke LightSync")
 		pivot = height
 	case FastSync:
+		fmt.Println("@huanke FastSync")
 		// Calculate the new fast/slow sync pivot point
 		if d.fsPivotLock == nil {
 			pivotOffset, err := rand.Int(rand.Reader, big.NewInt(int64(fsPivotInterval)))
@@ -449,6 +452,7 @@ func (d *Downloader) syncWithPeer(p *peer, hash common.Hash, td *big.Int) (err e
 // spawnSync runs d.process and all given fetcher functions to completion in
 // separate goroutines, returning the first error that appears.
 func (d *Downloader) spawnSync(origin uint64, fetchers ...func() error) error {
+	fmt.Println("@huanke Downloader spawnSync ")
 	var wg sync.WaitGroup
 	errc := make(chan error, len(fetchers)+1)
 	wg.Add(len(fetchers) + 1)

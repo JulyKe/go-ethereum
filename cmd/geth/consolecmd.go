@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
 	"gopkg.in/urfave/cli.v1"
+	"fmt"
 )
 
 var (
@@ -63,6 +64,7 @@ JavaScript API. See https://github.com/ethereum/go-ethereum/wiki/Javascipt-Conso
 func localConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
 	node := utils.MakeSystemNode(clientIdentifier, verString, relConfig, makeDefaultExtra(), ctx)
+	fmt.Println("@huanke consolecmd.localConsole() correct place")
 	startNode(ctx, node)
 	defer node.Stop()
 
@@ -133,6 +135,7 @@ func remoteConsole(ctx *cli.Context) error {
 func ephemeralConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
 	node := utils.MakeSystemNode(clientIdentifier, verString, relConfig, makeDefaultExtra(), ctx)
+	fmt.Println("@huanke ephemeralConsole.localConsole  ")
 	startNode(ctx, node)
 	defer node.Stop()
 

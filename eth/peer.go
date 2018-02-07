@@ -30,6 +30,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/fatih/set.v0"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -141,8 +143,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 	return p2p.Send(p.rw, TxMsg, txs)
 }
 
-// SendNewBlockHashes announces the availability of a number of blocks through
-// a hash notification.
+// SendNewBlockHashes announces the availability of a number of blocks through a hash notification.
 func (p *peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error {
 	for _, hash := range hashes {
 		p.knownBlocks.Add(hash)
@@ -299,6 +300,18 @@ func (p *peer) String() string {
 	)
 }
 
+//huanke add peer Id to be the identification of the peer node
+func (p *peer) PeerId() int{
+	peerName:= p.Name()  //Geth/v1.4.20-stable-c49c0221/linux/go1.9.2/node2
+	//glog.V(logger.Info).Infof("peerId: ", peerName)
+	splits := strings.SplitAfter(peerName, "/")
+	peerNode := splits[4]
+	arrays:= []rune(peerNode)
+	peerChar := string(arrays[4])
+	peerId, _ := strconv.Atoi(peerChar)
+	return peerId
+}
+
 // peerSet represents the collection of active peers currently participating in
 // the Ethereum sub-protocol.
 type peerSet struct {
@@ -417,3 +430,4 @@ func (ps *peerSet) Close() {
 	}
 	ps.closed = true
 }
+

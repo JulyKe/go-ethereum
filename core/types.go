@@ -75,4 +75,6 @@ type Backend interface {
 	ChainDb() ethdb.Database
 	DappDb() ethdb.Database
 	EventMux() *event.TypeMux
+	//huanke add it
+	GetSelfId() int
 }

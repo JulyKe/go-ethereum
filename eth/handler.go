@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
+	//"math"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/pow"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/eventIntercept"
 )
 
 const (
@@ -91,11 +92,16 @@ type ProtocolManager struct {
 	wg sync.WaitGroup
 
 	badBlockReportingEnabled bool
+	//huanke add selfId for the protocolManager
+	selfId int
+	interceptors []*eventIntercept.Interceptor
+	peerArray []*peer
 }
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(config *params.ChainConfig, fastSync bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, fastSync bool, networkId int, mux *event.TypeMux, txpool txPool,
+	pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database, selfId int) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkId:   networkId,
@@ -109,6 +115,7 @@ func NewProtocolManager(config *params.ChainConfig, fastSync bool, networkId int
 		noMorePeers: make(chan struct{}),
 		txsyncCh:    make(chan *txsync),
 		quitSync:    make(chan struct{}),
+		selfId:      selfId,
 	}
 	// Figure out whether to allow fast sync or not
 	if fastSync && blockchain.CurrentBlock().NumberU64() > 0 {
@@ -120,6 +127,10 @@ func NewProtocolManager(config *params.ChainConfig, fastSync bool, networkId int
 	}
 	// Initiate a sub-protocol for every implemented version we can handle
 	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
+
+	//huanke add it
+	manager.interceptors = make([]*eventIntercept.Interceptor,manager.peers.Len())
+	manager.peerArray = make([]*peer, manager.peers.Len())
 	for i, version := range ProtocolVersions {
 		// Skip protocol version if incompatible with the mode of operation
 		if fastSync && version < eth63 {
@@ -172,6 +183,8 @@ func NewProtocolManager(config *params.ChainConfig, fastSync bool, networkId int
 		atomic.StoreUint32(&manager.synced, 1) // Mark initial sync done on any fetcher import
 		return manager.insertChain(blocks)
 	}
+	fmt.Println("@huanke manaager.fetcher")
+	glog.V(logger.Info).Infoln("@huanke manaager.fetcher")
 	manager.fetcher = fetcher.New(blockchain.GetBlock, validator, manager.BroadcastBlock, heighter, inserter, manager.removePeer)
 
 	if blockchain.Genesis().Hash().Hex() == defaultGenesisHash && networkId == 1 {
@@ -183,6 +196,7 @@ func NewProtocolManager(config *params.ChainConfig, fastSync bool, networkId int
 }
 
 func (pm *ProtocolManager) insertChain(blocks types.Blocks) (i int, err error) {
+	glog.V(logger.Info).Infoln("@huanke handler.insertChain")
 	i, err = pm.blockchain.InsertChain(blocks)
 	if pm.badBlockReportingEnabled && core.IsValidationErr(err) && i < len(blocks) {
 		go sendBadBlockReport(blocks[i], err)
@@ -597,6 +611,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == NewBlockHashesMsg:
+		fmt.Println("@huanke ====> receive NewBlockHashesMsg ", pm.selfId)
 		// Retrieve and deserialize the remote new block hashes notification
 		type announce struct {
 			Hash   common.Hash
@@ -639,6 +654,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == NewBlockMsg:
+		fmt.Println("@huanke ====> receive NewBlockMsg ", pm.selfId)
+
 		// Retrieve and decode the propagated block
 		var request newBlockData
 		if err := msg.Decode(&request); err != nil {
@@ -647,11 +664,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := request.Block.ValidateFields(); err != nil {
 			return errResp(ErrDecode, "block validation %v: %v", msg, err)
 		}
+		glog.V(logger.Info).Infoln("@huanke ====> receive NewBlockMsg ", p.PeerId(), pm.selfId, request.Block.Number())
 		request.Block.ReceivedAt = msg.ReceivedAt
 		request.Block.ReceivedFrom = p
 
 		// Mark the peer as owning the block and schedule it for import
 		p.MarkBlock(request.Block.Hash())
+		glog.V(logger.Info).Infoln("@huanke ====> pm.fetcher.Enqueue(p.id, request.Block")
 		pm.fetcher.Enqueue(p.id, request.Block)
 
 		// Assuming the block is importable by the peer, but possibly not yet done so,
@@ -662,6 +681,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		)
 		// Update the peers total difficulty if better than the previous
 		if _, td := p.Head(); trueTD.Cmp(td) > 0 {
+			glog.V(logger.Info).Infoln("@huanke ====>  _, td := p.Head(); trueTD.Cmp(td) > 0 ")
 			p.SetHead(trueHead, trueTD)
 
 			// Schedule a sync if above ours. Note, this will not fire a sync for a gap of
@@ -669,13 +689,18 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			// scenario should easily be covered by the fetcher.
 			currentBlock := pm.blockchain.CurrentBlock()
 			if trueTD.Cmp(pm.blockchain.GetTd(currentBlock.Hash())) > 0 {
+				glog.V(logger.Info).Infoln("@huanke ====> go pm.synchronise(p)")
 				go pm.synchronise(p)
 			}
 		}
 
 	case msg.Code == TxMsg:
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
+		fmt.Println("@huanke ====> receive TxMsg ", p.PeerId(),pm.selfId)
+		glog.V(logger.Info).Infoln("@huanke ====> receiveTxMsg ", p.PeerId(),pm.selfId)
 		if atomic.LoadUint32(&pm.synced) == 0 {
+			fmt.Println("@huanke ****************************** not sync")
+			glog.V(logger.Info).Infoln("@huanke ****************************** not sync")
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
@@ -688,6 +713,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			if tx == nil {
 				return errResp(ErrDecode, "transaction %d is nil", i)
 			}
+			fmt.Println("@huanke ********************************* sync ", tx.Nonce())
+			glog.V(logger.Info).Infoln("@huanke ******************************sync", tx.Nonce())
 			p.MarkTransaction(tx.Hash())
 		}
 		pm.txpool.AddBatch(txs)
@@ -701,9 +728,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 // BroadcastBlock will either propagate a block to a subset of it's peers, or
 // will only announce it's availability (depending what's requested).
 func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
+	fmt.Println("@huanke BroadcastBlock ", block.Number(), propagate)
 	hash := block.Hash()
 	peers := pm.peers.PeersWithoutBlock(hash)
-
+	glog.V(logger.Info).Infof("@huanke BroadcastBlock ", block.Number(), propagate, len(peers))
 	// If propagation is requested, send to a subset of the peer
 	if propagate {
 		// Calculate the TD of the block (it's not imported yet, so block.Td is not valid)
@@ -715,9 +743,42 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 			return
 		}
 		// Send the block to a subset of our peers
-		transfer := peers[:int(math.Sqrt(float64(len(peers))))]
-		for _, peer := range transfer {
-			peer.SendNewBlock(block, td)
+		//transfer := peers[:int(math.Sqrt(float64(len(peers))))]
+		transfer := peers
+		if eventIntercept.IsIntercept {
+			for _, peer := range transfer {
+				fmt.Println("@huanke Self: ", pm.selfId, " BroadcastBlock to Peer: ", peer.PeerId())
+				glog.V(logger.Info).Infof("@huanke SendNewBlock", pm.selfId, peer.PeerId(),block.Number())
+				blockNum := int(block.Number().Uint64())
+				interceptor := eventIntercept.NewIntercept(pm.selfId,peer.PeerId(),"NBMsg", blockNum,11)
+				go interceptor.Wait(interceptor.GetAckFileName())
+				pm.interceptors = append(pm.interceptors, interceptor)
+				pm.peerArray = append(pm.peerArray, peer)
+			}
+			counter :=0
+			for {
+				for i:=0; i< len(pm.interceptors); i++  {
+					select {
+					case <-pm.interceptors[i].Exist:
+						glog.V(logger.Info).Infof("@huanke receive msg <- ", i)
+						pm.interceptors[i].WaitAck(pm.interceptors[i].GetAckFileName())
+						pm.peerArray[i].SendNewBlock(block, td)
+						counter++
+					default:
+						time.Sleep(50*time.Millisecond)
+						//glog.V(logger.Info).Infof("@huanke counter ", counter)
+						if counter==len(pm.interceptors) {
+							return
+						}
+					}
+				}
+			}
+		} else {
+			for _, peer := range transfer {
+				fmt.Println("@huanke Self: ", pm.selfId, " BroadcastBlock to Peer: ", peer.PeerId())
+				glog.V(logger.Info).Infof("@huanke Self: ", pm.selfId, " BroadcastBlock to Peer: ", peer.PeerId())
+				peer.SendNewBlock(block, td)
+			}
 		}
 		glog.V(logger.Detail).Infof("propagated block %x to %d peers in %v", hash[:4], len(transfer), time.Since(block.ReceivedAt))
 	}
@@ -730,14 +791,45 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 	}
 }
 
-// BroadcastTx will propagate a transaction to all peers which are not known to
-// already have the given transaction.
+//BroadcastTx will propagate a transaction to all peers which are not known to already have the given transaction.
 func (pm *ProtocolManager) BroadcastTx(hash common.Hash, tx *types.Transaction) {
 	// Broadcast transaction to a batch of peers not knowing about it
 	peers := pm.peers.PeersWithoutTx(hash)
 	//FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
-	for _, peer := range peers {
-		peer.SendTransactions(types.Transactions{tx})
+	if !eventIntercept.IsIntercept {
+		for _, peer := range peers {
+			fmt.Println("@huanke Self: ", pm.selfId, " BroadcastTx to Peer: ", peer.PeerId())
+			glog.V(logger.Info).Infof("@huanke SendTransactions", pm.selfId, peer.PeerId())
+
+			interceptor := eventIntercept.NewIntercept(pm.selfId, peer.PeerId(), "TxMsg", 11, 11)
+			go interceptor.Wait(interceptor.GetAckFileName())
+			pm.interceptors = append(pm.interceptors, interceptor)
+			pm.peerArray = append(pm.peerArray, peer)
+
+		}
+		counter :=0
+		for {
+			for i:=0; i< len(pm.interceptors); i++  {
+				select {
+				case <-pm.interceptors[i].Exist:
+					glog.V(logger.Info).Infof("@huanke receive msg <- ", i)
+					pm.interceptors[i].WaitAck(pm.interceptors[i].GetAckFileName())
+					pm.peerArray[i].SendTransactions(types.Transactions{tx})
+					counter++
+				default:
+					time.Sleep(50*time.Millisecond)
+					//glog.V(logger.Info).Infof("@huanke counter ", counter)
+					if counter==len(pm.interceptors) {
+						return
+					}
+				}
+			}
+		}
+	}else{
+		for _, peer := range peers {
+			fmt.Println("@huanke Self: ", pm.selfId, " BroadcastTx to Peer: ", peer.PeerId())
+			peer.SendTransactions(types.Transactions{tx})
+		}
 	}
 	glog.V(logger.Detail).Infoln("broadcast tx to", len(peers), "peers")
 }
@@ -748,6 +840,8 @@ func (self *ProtocolManager) minedBroadcastLoop() {
 	for obj := range self.minedBlockSub.Chan() {
 		switch ev := obj.Data.(type) {
 		case core.NewMinedBlockEvent:
+			fmt.Println("@huanke minedBroadcastLoop")
+			glog.V(logger.Info).Infoln("@huanke minedBroadcastLoop  ", ev.Block.Number())
 			self.BroadcastBlock(ev.Block, true)  // First propagate block to peers
 			self.BroadcastBlock(ev.Block, false) // Only then announce to the rest
 		}
@@ -758,6 +852,8 @@ func (self *ProtocolManager) txBroadcastLoop() {
 	// automatically stops if unsubscribe
 	for obj := range self.txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
+		fmt.Println("@huanke txBroadcastLoop  ", event.Tx.Nonce())
+		glog.V(logger.Info).Infoln("@huanke txBroadcastLoop  ", event.Tx.Nonce())
 		self.BroadcastTx(event.Tx.Hash(), event.Tx)
 	}
 }

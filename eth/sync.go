@@ -27,15 +27,20 @@ import (
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"fmt"
 )
 
 const (
-	forceSyncCycle      = 10 * time.Second // Time interval to force syncs, even if few peers are available
+	//forceSyncCycle      = 10 * time.Second // Time interval to force syncs, even if few peers are available
+	//huanke modify the sync cycle time to 1000s
+	forceSyncCycle      = 10* time.Second // Time interval to force syncs, even if few peers are available
 	minDesiredPeerCount = 5                // Amount of peers desired to start syncing
 
 	// This is the target size for the packs of transactions sent by txsyncLoop.
 	// A pack can get larger than this if a single transactions exceeds this size.
-	txsyncPackSize = 100 * 1024
+	//txsyncPackSize = 100 * 1024
+	//huanke change the packSize to broadcast tx to peers whenever there is a tx
+	txsyncPackSize = 1
 )
 
 type txsync struct {
@@ -47,6 +52,7 @@ type txsync struct {
 func (pm *ProtocolManager) syncTransactions(p *peer) {
 	var txs types.Transactions
 	for _, batch := range pm.txpool.Pending() {
+		fmt.Println("@huanke syncTransactions() pm.txpool.Pending() ", len(batch))
 		txs = append(txs, batch...)
 	}
 	if len(txs) == 0 {
@@ -54,6 +60,7 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 	}
 	select {
 	case pm.txsyncCh <- &txsync{p, txs}:
+		fmt.Println("@huanke write pm.txsyncCh  ")
 	case <-pm.quitSync:
 	}
 }
@@ -88,6 +95,7 @@ func (pm *ProtocolManager) txsyncLoop() {
 		// Send the pack in the background.
 		glog.V(logger.Detail).Infof("%v: sending %d transactions (%v)", s.p.Peer, len(pack.txs), size)
 		sending = true
+		fmt.Println("@huanke txsyncLoop self: ", pm.selfId, " peer: ", s.p.PeerId())
 		go func() { done <- pack.p.SendTransactions(pack.txs) }()
 	}
 
@@ -108,6 +116,7 @@ func (pm *ProtocolManager) txsyncLoop() {
 	for {
 		select {
 		case s := <-pm.txsyncCh:
+			fmt.Println("@huanke read pm.txsyncCh  ", s.p.PeerId())
 			pending[s.p.ID()] = s
 			if !sending {
 				send(s)
@@ -142,6 +151,7 @@ func (pm *ProtocolManager) syncer() {
 	for {
 		select {
 		case <-pm.newPeerCh:
+			//fmt.Println("@huanke newPeerCh ", pm.selfId)
 			// Make sure we have peers to select from, then sync
 			if pm.peers.Len() < minDesiredPeerCount {
 				break
@@ -149,6 +159,7 @@ func (pm *ProtocolManager) syncer() {
 			go pm.synchronise(pm.peers.BestPeer())
 
 		case <-forceSync:
+			//fmt.Println("@huanke forceSync " , pm.selfId)
 			// Force a sync even if not enough peers are present
 			go pm.synchronise(pm.peers.BestPeer())
 
@@ -162,21 +173,35 @@ func (pm *ProtocolManager) syncer() {
 func (pm *ProtocolManager) synchronise(peer *peer) {
 	// Short circuit if no peers are available
 	if peer == nil {
+		//fmt.Println("@huanke sync.synchronise peer==nil" )
 		return
 	}
 	// Make sure the peer's TD is higher than our own
 	currentBlock := pm.blockchain.CurrentBlock()
+	//fmt.Println("@huanke synchronise currentBlock :", currentBlock.Number())
 	td := pm.blockchain.GetTd(currentBlock.Hash())
 
 	pHead, pTd := peer.Head()
-	if pTd.Cmp(td) <= 0 {
+	//if pTd.Cmp(td) <= 0 {
+	if pTd.Cmp(td) < 0 {//huanke change it in order to execute below  atomic.StoreUint32(&pm.synced, 1)
+		fmt.Println("@huanke sync.synchronise pTd.Cmp(td) <= 0 ", peer.PeerId())
 		return
 	}
+
+	//***huanke add it to avoid every 10s sync, then no newBlogMsg to communicate
+	if atomic.LoadUint32(&pm.synced) == 1 {
+		glog.V(logger.Info).Infoln("@huanke *******Not 1st Sync************")
+		return
+	}else{
+		glog.V(logger.Info).Infoln("@huanke *******Is 1st Sync************")
+	}
+	//*******************************************************
 	// Otherwise try to sync with the downloader
 	mode := downloader.FullSync
 	if atomic.LoadUint32(&pm.fastSync) == 1 {
 		mode = downloader.FastSync
 	}
+	fmt.Println("@huanke sync.synchronise ", peer.PeerId() )
 	if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
 		return
 	}

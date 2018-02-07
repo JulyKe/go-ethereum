@@ -49,6 +49,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"strconv"
 )
 
 const (
@@ -65,6 +66,10 @@ var (
 )
 
 type Config struct {
+	//********************huanke add a variable for the eth.Config****
+	SelfId int
+	DataDir string
+	//***********************************************************
 	ChainConfig *params.ChainConfig // chain configuration
 
 	NetworkId int    // Network ID to use for selecting peers to connect to
@@ -143,6 +148,8 @@ type Ethereum struct {
 	etherbase     common.Address
 	netVersionId  int
 	netRPCService *PublicNetAPI
+	//huanke add a variable for ethereum instance
+	selfId int
 }
 
 func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
@@ -169,7 +176,17 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		db.Meter("eth/db/dapp/")
 	}
 	glog.V(logger.Info).Infof("Protocol Versions: %v, Network Id: %v", ProtocolVersions, config.NetworkId)
-
+	//------------------------------------------------------------------------------
+	//splits := strings.SplitAfter(config.DataDir, "e")  // [storage /node 1]
+	//selfID, _ := strconv.Atoi(splits[2])
+	//config.SelfId = selfID
+	//fmt.Println("@huanke backend.New()  ", selfID)
+	dataDir := config.DataDir
+	last1  := dataDir[len(dataDir)-1:]
+	selfID, _ := strconv.Atoi(last1)
+	config.SelfId = selfID
+	glog.V(logger.Info).Infof("selfId: ", last1)
+	//------------------------------------------------------------------------------
 	// Load up any custom genesis block if requested
 	if len(config.Genesis) > 0 {
 		block, err := core.WriteGenesisBlock(chainDb, strings.NewReader(config.Genesis))
@@ -219,6 +236,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		GpobaseStepUp:           config.GpobaseStepUp,
 		GpobaseCorrectionFactor: config.GpobaseCorrectionFactor,
 		httpclient:              httpclient.New(config.DocRoot),
+		selfId: 		 config.SelfId,
 	}
 	switch {
 	case config.PowTest:
@@ -262,10 +280,11 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	eth.gpo = NewGasPriceOracle(eth)
 
-	newPool := core.NewTxPool(eth.chainConfig, eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
+	newPool := core.NewTxPool(eth.chainConfig, eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit, config.SelfId)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.FastSync, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.FastSync, config.NetworkId, eth.eventMux,
+		eth.txPool, eth.pow, eth.blockchain, chainDb, config.SelfId); err != nil {
 		return nil, err
 	}
 	eth.miner = miner.New(eth, eth.chainConfig, eth.EventMux(), eth.pow)
@@ -623,4 +642,8 @@ func addMipmapBloomBins(db ethdb.Database) (err error) {
 	}
 	glog.V(logger.Info).Infoln("upgrade completed in", time.Since(tstart))
 	return nil
+}
+
+func (self *Ethereum) GetSelfId() int {
+	return self.selfId
 }

@@ -87,6 +87,7 @@ out:
 				close(self.quitCurrentOp)
 			}
 			self.quitCurrentOp = make(chan struct{})
+			glog.V(logger.Info).Infoln("@huanke go self.mine(work, self.quitCurrentOp) ")
 			go self.mine(work, self.quitCurrentOp)
 			self.mu.Unlock()
 		case <-self.quit:
@@ -121,6 +122,7 @@ func (self *CpuAgent) mine(work *Work, stop <-chan struct{}) {
 	nonce, mixDigest := self.pow.Search(work.Block, stop, self.index)
 	if nonce != 0 {
 		block := work.Block.WithMiningResult(nonce, common.BytesToHash(mixDigest))
+		glog.V(logger.Info).Infoln("@huanke write Result into returnChannel")
 		self.returnCh <- &Result{work, block}
 	} else {
 		self.returnCh <- nil

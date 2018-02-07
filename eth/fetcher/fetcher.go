@@ -291,6 +291,7 @@ func (f *Fetcher) loop() {
 		// Import any queued blocks that could potentially fit
 		height := f.chainHeight()
 		for !f.queue.Empty() {
+			glog.V(logger.Info).Infoln("@huanke loop()")
 			op := f.queue.PopItem().(*inject)
 			if f.queueChangeHook != nil {
 				f.queueChangeHook(op.block.Hash(), false)
@@ -310,6 +311,7 @@ func (f *Fetcher) loop() {
 				f.forgetBlock(hash)
 				continue
 			}
+			glog.V(logger.Info).Infof("@huanke f.insert(op.origin, op.block)", op.block.Number())
 			f.insert(op.origin, op.block)
 		}
 		// Wait for an outside event to occur
@@ -354,6 +356,7 @@ func (f *Fetcher) loop() {
 
 		case op := <-f.inject:
 			// A direct block insertion was requested, try and fill any pending gaps
+			glog.V(logger.Info).Infof("@huanke <-f.inject")
 			propBroadcastInMeter.Mark(1)
 			f.enqueue(op.origin, op.block)
 
@@ -514,6 +517,7 @@ func (f *Fetcher) loop() {
 			// Schedule the header-only blocks for import
 			for _, block := range complete {
 				if announce := f.completing[block.Hash()]; announce != nil {
+					glog.V(logger.Info).Infof("@huanke Schedule the header-only blocks for import ", len(complete), block.Number())
 					f.enqueue(announce.origin, block)
 				}
 			}
@@ -570,6 +574,7 @@ func (f *Fetcher) loop() {
 			// Schedule the retrieved blocks for ordered import
 			for _, block := range blocks {
 				if announce := f.completing[block.Hash()]; announce != nil {
+					glog.V(logger.Info).Infof("@huanke Schedule the retrieved blocks for ordered import ", len(blocks), block.Number())
 					f.enqueue(announce.origin, block)
 				}
 			}
@@ -612,19 +617,20 @@ func (f *Fetcher) rescheduleComplete(complete *time.Timer) {
 // enqueue schedules a new future import operation, if the block to be imported
 // has not yet been seen.
 func (f *Fetcher) enqueue(peer string, block *types.Block) {
+	glog.V(logger.Info).Infof("@huanke fetcher.enqueue()")
 	hash := block.Hash()
 
 	// Ensure the peer isn't DOSing us
 	count := f.queues[peer] + 1
 	if count > blockLimit {
-		glog.V(logger.Debug).Infof("Peer %s: discarded block #%d [%x…], exceeded allowance (%d)", peer, block.NumberU64(), hash.Bytes()[:4], blockLimit)
+		glog.V(logger.Info).Infof("Peer %s: discarded block #%d [%x…], exceeded allowance (%d)", peer, block.NumberU64(), hash.Bytes()[:4], blockLimit)
 		propBroadcastDOSMeter.Mark(1)
 		f.forgetHash(hash)
 		return
 	}
 	// Discard any past or too distant blocks
 	if dist := int64(block.NumberU64()) - int64(f.chainHeight()); dist < -maxUncleDist || dist > maxQueueDist {
-		glog.V(logger.Debug).Infof("Peer %s: discarded block #%d [%x…], distance %d", peer, block.NumberU64(), hash.Bytes()[:4], dist)
+		glog.V(logger.Info).Infof("Peer %s: discarded block #%d [%x…], distance %d", peer, block.NumberU64(), hash.Bytes()[:4], dist)
 		propBroadcastDropMeter.Mark(1)
 		f.forgetHash(hash)
 		return
@@ -641,7 +647,7 @@ func (f *Fetcher) enqueue(peer string, block *types.Block) {
 		if f.queueChangeHook != nil {
 			f.queueChangeHook(op.block.Hash(), true)
 		}
-		if glog.V(logger.Debug) {
+		if glog.V(logger.Info) {
 			glog.Infof("Peer %s: queued block #%d [%x…], total %v", peer, block.NumberU64(), hash.Bytes()[:4], f.queue.Size())
 		}
 	}
@@ -669,6 +675,7 @@ func (f *Fetcher) insert(peer string, block *types.Block) {
 		case nil:
 			// All ok, quickly propagate to our peers
 			propBroadcastOutTimer.UpdateSince(block.ReceivedAt)
+			glog.V(logger.Info).Infof("@huanke go f.broadcastBlock(block, true)", block.Number())
 			go f.broadcastBlock(block, true)
 
 		case core.BlockFutureErr:
@@ -687,6 +694,7 @@ func (f *Fetcher) insert(peer string, block *types.Block) {
 		}
 		// If import succeeded, broadcast the block
 		propAnnounceOutTimer.UpdateSince(block.ReceivedAt)
+		glog.V(logger.Info).Infof("@huanke go f.broadcastBlock(block, false)", block.Number())
 		go f.broadcastBlock(block, false)
 
 		// Invoke the testing hook if needed

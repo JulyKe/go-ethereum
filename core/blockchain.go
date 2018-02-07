@@ -587,6 +587,7 @@ func (self *BlockChain) procFutureBlocks() {
 		}
 	}
 	if len(blocks) > 0 {
+		glog.V(logger.Info).Infoln("@huanke procFutureBlocks", len(blocks))
 		types.BlockBy(types.Number).Sort(blocks)
 		self.InsertChain(blocks)
 	}
@@ -937,7 +938,7 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 
 		switch status {
 		case CanonStatTy:
-			if glog.V(logger.Debug) {
+			if glog.V(logger.Info) {
 				glog.Infof("[%v] inserted block #%d (%d TXs %v G %d UNCs) (%x...). Took %v\n", time.Now().UnixNano(), block.Number(), len(block.Transactions()), block.GasUsed(), len(block.Uncles()), block.Hash().Bytes()[0:4], time.Since(bstart))
 			}
 			events = append(events, ChainEvent{block, block.Hash(), logs})

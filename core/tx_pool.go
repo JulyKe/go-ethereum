@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
+	"github.com/ethereum/go-ethereum/eventIntercept"
 )
 
 var (
@@ -87,9 +88,11 @@ type TxPool struct {
 	quit chan struct{}
 
 	homestead bool
+	//huanke add selfId variable
+	selfId int
 }
 
-func NewTxPool(config *params.ChainConfig, eventMux *event.TypeMux, currentStateFn stateFn, gasLimitFn func() *big.Int) *TxPool {
+func NewTxPool(config *params.ChainConfig, eventMux *event.TypeMux, currentStateFn stateFn, gasLimitFn func() *big.Int, selfId int) *TxPool {
 	pool := &TxPool{
 		config:       config,
 		signer:       types.NewEIP155Signer(config.ChainId),
@@ -105,6 +108,7 @@ func NewTxPool(config *params.ChainConfig, eventMux *event.TypeMux, currentState
 		localTx:      newTxSet(),
 		events:       eventMux.Subscribe(ChainHeadEvent{}, GasPriceChanged{}, RemovedTransactionEvent{}),
 		quit:         make(chan struct{}),
+		selfId:	      selfId,
 	}
 
 	pool.wg.Add(2)
@@ -127,7 +131,7 @@ func (pool *TxPool) eventLoop() {
 			if ev.Block != nil && pool.config.IsHomestead(ev.Block.Number()) {
 				pool.homestead = true
 			}
-
+			glog.V(logger.Info).Infoln("@huanke pool.resetState()")
 			pool.resetState()
 			pool.mu.Unlock()
 		case GasPriceChanged:
@@ -141,6 +145,7 @@ func (pool *TxPool) eventLoop() {
 }
 
 func (pool *TxPool) resetState() {
+	fmt.Println("@huanke *************One block coming***************")
 	currentState, err := pool.currentState()
 	if err != nil {
 		glog.V(logger.Error).Infof("Failed to get current state: %v", err)
@@ -153,20 +158,57 @@ func (pool *TxPool) resetState() {
 	}
 	pool.pendingState = managedState
 
+
+	//for kkAddr, _ := range pool.pending {
+	//	nonce := currentState.GetNonce(kkAddr)
+	//	glog.V(logger.Info).Infof("@huanke reset: > ", pool.selfId, "--> ",pool.pendingState.GetNonce(kkAddr), "--> ",nonce, "pending length: ", len(pool.pending))
+	//	pendingNonce := int(pool.pendingState.GetNonce(kkAddr))
+	//	currentNonce := int(nonce)
+	//	if pool.selfId==2 {
+	//		//fmt.Println("@huanke ********wait*************", len(pool.pending))
+	//		//time.Sleep(30*time.Second)
+	//		if eventIntercept.IsIntercept {
+	//			interceptor:=eventIntercept.NewIntercept(pool.selfId, pool.selfId, "ReSet", pendingNonce, currentNonce)
+	//			go interceptor.Wait(interceptor.GetAckFileName())
+	//			<-interceptor.Exist
+	//			interceptor.WaitAck(interceptor.GetAckFileName())
+	//		}
+	//	}
+	//}
+	if len(pool.pending) >0 {
+		glog.V(logger.Info).Infof("@huanke reset: > ", pool.selfId, "--> pending length: ", len(pool.pending))
+		if pool.selfId==2 {
+			//fmt.Println("@huanke ********wait*************", len(pool.pending))
+			//time.Sleep(30*time.Second)
+			if eventIntercept.IsIntercept {
+				interceptor:=eventIntercept.NewIntercept(pool.selfId, pool.selfId, "ReSet", 1, 1)
+				go interceptor.Wait(interceptor.GetAckFileName())
+				<-interceptor.Exist
+				interceptor.WaitAck(interceptor.GetAckFileName())
+			}
+		}
+	}
+
 	// validate the pool of pending transactions, this will remove
 	// any transactions that have been included in the block or
 	// have been invalidated because of another transaction (e.g.
 	// higher gas price)
 	pool.demoteUnexecutables()
-
+	fmt.Println("@huanke node: < ", pool.selfId, "pending len: ", len(pool.pending))
+	glog.V(logger.Info).Infof("@huanke node: < ", pool.selfId, "pending len: ", len(pool.pending))
 	// Update all accounts to the latest known pending nonce
 	for addr, list := range pool.pending {
 		txs := list.Flatten() // Heavy but will be cached and is needed by the miner anyway
 		pool.pendingState.SetNonce(addr, txs[len(txs)-1].Nonce()+1)
+		fmt.Println("@huanke addr: ", addr.Str(), "Nonce: ",txs[len(txs)-1].Nonce())
 	}
 	// Check the queue and move transactions over to the pending if possible
 	// or remove those that have become invalid
+
+	//huanke add sleep here to drag slow resetState process
 	pool.promoteExecutables()
+	fmt.Println("@huanke *************One block ending***************")
+
 }
 
 func (pool *TxPool) Stop() {
@@ -221,7 +263,7 @@ func (pool *TxPool) Content() (map[common.Address]types.Transactions, map[common
 func (pool *TxPool) Pending() map[common.Address]types.Transactions {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-
+	glog.V(logger.Info).Infof("@huanke Pending() ", len(pool.pending))
 	// check queue first
 	pool.promoteExecutables()
 
@@ -351,10 +393,13 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction) {
 //
 // Note, this method assumes the pool lock is held!
 func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) {
+	//fmt.Println("@huanke tx_pool.promoteTx()" )
 	// Init delayed since tx pool could have been started before any state sync
 	if pool.pendingState == nil {
+		//fmt.Println("@huanke promoteTx.pendingState == nil" )
 		pool.resetState()
 	}
+	//fmt.Println("@huanke pool.pendingState != nil" , tx.Nonce())
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
 		pool.pending[addr] = newTxList(true)
@@ -376,17 +421,23 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
 	pool.beats[addr] = time.Now()
 	pool.pendingState.SetNonce(addr, tx.Nonce()+1)
+	fmt.Println("@huanke go pool.eventMux.Post(TxPreEvent{tx})", len(pool.pending) )
+	glog.V(logger.Info).Infof("go pool.eventMux.Post(TxPreEvent{tx})", len(pool.pending))
 	go pool.eventMux.Post(TxPreEvent{tx})
 }
 
 // Add queues a single transaction in the pool if it is valid.
 func (pool *TxPool) Add(tx *types.Transaction) error {
+	fmt.Println("@huanke tx_pool.Add()", tx.Nonce())
+	glog.V(logger.Info).Infoln("@huanke tx_pool.Add()", tx.Nonce())
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
 	if err := pool.add(tx); err != nil {
 		return err
 	}
+	glog.V(logger.Info).Infoln("@huanke Add() ", tx.Nonce())
+	fmt.Println("@huanke Add() ", tx.Nonce())
 	pool.promoteExecutables()
 
 	return nil
@@ -396,13 +447,17 @@ func (pool *TxPool) Add(tx *types.Transaction) error {
 func (pool *TxPool) AddBatch(txs []*types.Transaction) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-
+	//fmt.Println("@huanke tx_pool.AddBatch()")
 	for _, tx := range txs {
+		glog.V(logger.Info).Infoln("@huanke Batch Nonce ", tx.Nonce())
 		if err := pool.add(tx); err != nil {
 			glog.V(logger.Debug).Infoln("tx error:", err)
 		}
 	}
+	fmt.Println("@huanke AddBatch() ", len(pool.all), len(pool.queue), len(pool.pending))
+	glog.V(logger.Info).Infoln("@huanke AddBatch() ", len(pool.all), len(pool.queue), len(pool.pending))
 	pool.promoteExecutables()
+	glog.V(logger.Info).Infoln("@huanke kkkk ", len(pool.all), len(pool.queue), len(pool.pending))
 }
 
 // Get returns a transaction if it is contained in the pool
@@ -479,6 +534,7 @@ func (pool *TxPool) removeTx(hash common.Hash) {
 func (pool *TxPool) promoteExecutables() {
 	// Init delayed since tx pool could have been started before any state sync
 	if pool.pendingState == nil {
+		//fmt.Println("@huanke promoteExecutables, pendingState == nil" )
 		pool.resetState()
 	}
 	// Retrieve the current state to allow nonce and balance checking
@@ -490,8 +546,11 @@ func (pool *TxPool) promoteExecutables() {
 	// Iterate over all accounts and promote any executable transactions
 	queued := uint64(0)
 	for addr, list := range pool.queue {
+		glog.V(logger.Info).Infof("@huanke ===========> promoteExecutables: ", pool.pendingState.GetNonce(addr), state.GetNonce(addr))
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(state.GetNonce(addr)) {
+			fmt.Println("@huanke promoteExecutables Drop all transactions that are deemed too old (low nonce)", state.GetNonce(addr) )
+			glog.V(logger.Info).Infof("@huanke promoteExecutables Drop all transactions that are deemed too old (low nonce)", state.GetNonce(addr) )
 			if glog.V(logger.Core) {
 				glog.Infof("Removed old queued transaction: %v", tx)
 			}
@@ -500,6 +559,8 @@ func (pool *TxPool) promoteExecutables() {
 		// Drop all transactions that are too costly (low balance)
 		drops, _ := list.Filter(state.GetBalance(addr))
 		for _, tx := range drops {
+			fmt.Println("@huanke Drop all transactions that are too costly (low balance)" )
+			glog.V(logger.Info).Infof("@huanke Drop all transactions that are too costly (low balance)" )
 			if glog.V(logger.Core) {
 				glog.Infof("Removed unpayable queued transaction: %v", tx)
 			}
@@ -507,6 +568,8 @@ func (pool *TxPool) promoteExecutables() {
 		}
 		// Gather all executable transactions and promote them
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
+			fmt.Println("@huanke promoteExecutables Gather all executable transactions and promote them",pool.pendingState.GetNonce(addr))
+			glog.V(logger.Info).Infof("@huanke promoteExecutables Gather all executable transactions and promote them",pool.pendingState.GetNonce(addr))
 			if glog.V(logger.Core) {
 				glog.Infof("Promoting queued transaction: %v", tx)
 			}
@@ -514,6 +577,7 @@ func (pool *TxPool) promoteExecutables() {
 		}
 		// Drop all transactions over the allowed limit
 		for _, tx := range list.Cap(int(maxQueuedPerAccount)) {
+			fmt.Println("@huanke Drop all transactions over the allowed limit" )
 			if glog.V(logger.Core) {
 				glog.Infof("Removed cap-exceeding queued transaction: %v", tx)
 			}
@@ -623,12 +687,18 @@ func (pool *TxPool) demoteUnexecutables() {
 		glog.V(logger.Info).Infoln("failed to get current state: %v", err)
 		return
 	}
+
 	// Iterate over all accounts and demote any non-executable transactions
 	for addr, list := range pool.pending {
 		nonce := state.GetNonce(addr)
+		fmt.Println("@huanke ===========> demoteUnexecutables: ", pool.pendingState.GetNonce(addr), nonce)
+		if eventIntercept.IsIntercept {
+			eventIntercept.UpdateIntercept(pool.selfId, pool.selfId, "Update", int(pool.pendingState.GetNonce(addr)), int(nonce))
+		}
 
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(nonce) {
+			fmt.Println("@huanke Drop all transactions that are deemed too old (low nonce) ", nonce)
 			if glog.V(logger.Core) {
 				glog.Infof("Removed old pending transaction: %v", tx)
 			}
@@ -637,12 +707,14 @@ func (pool *TxPool) demoteUnexecutables() {
 		// Drop all transactions that are too costly (low balance), and queue any invalids back for later
 		drops, invalids := list.Filter(state.GetBalance(addr))
 		for _, tx := range drops {
+			fmt.Println("@huanke Drop all transactions that are too costly (low balance)")
 			if glog.V(logger.Core) {
 				glog.Infof("Removed unpayable pending transaction: %v", tx)
 			}
 			delete(pool.all, tx.Hash())
 		}
 		for _, tx := range invalids {
+			fmt.Println("@huanke queue any invalids back for later")
 			if glog.V(logger.Core) {
 				glog.Infof("Demoting pending transaction: %v", tx)
 			}
@@ -650,6 +722,7 @@ func (pool *TxPool) demoteUnexecutables() {
 		}
 		// Delete the entire queue entry if it became empty.
 		if list.Empty() {
+			fmt.Println("@huanke list is empty")
 			delete(pool.pending, addr)
 			delete(pool.beats, addr)
 		}

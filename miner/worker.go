@@ -149,6 +149,7 @@ func newWorker(config *params.ChainConfig, coinbase common.Address, eth core.Bac
 	go worker.update()
 
 	go worker.wait()
+	//fmt.Println("@huanke & worker.newWorker()")
 	worker.commitNewWork()
 
 	return worker
@@ -226,6 +227,7 @@ func (self *worker) update() {
 		// A real event arrived, process interesting content
 		switch ev := event.Data.(type) {
 		case core.ChainHeadEvent:
+			//fmt.Println("@huanke finish one block, mining. . ., commmit new work for new block")
 			self.commitNewWork()
 		case core.ChainSideEvent:
 			self.uncleMu.Lock()
@@ -233,15 +235,23 @@ func (self *worker) update() {
 			self.uncleMu.Unlock()
 		case core.TxPreEvent:
 			// Apply transaction to the pending state if we're not mining
+			fmt.Println("@huanke worker.update --> TxPreEvent ")
 			if atomic.LoadInt32(&self.mining) == 0 {
+				glog.V(logger.Info).Infoln("@huanke TxPreEvent non-miner node")
 				self.currentMu.Lock()
 
 				acc, _ := ev.Tx.From()
 				txs := map[common.Address]types.Transactions{acc: types.Transactions{ev.Tx}}
 				txset := types.NewTransactionsByPriceAndNonce(txs)
 
+				fmt.Println("@huanke worker.update --> self.current.commitTransactions ",ev.Tx.Nonce())
 				self.current.commitTransactions(self.mux, txset, self.gasPrice, self.chain)
 				self.currentMu.Unlock()
+			}
+			//huanke add commitNewWork here to make sure pending's length changed when start mining before sendTx
+			if atomic.LoadInt32(&self.mining) == 1 {
+				glog.V(logger.Info).Infoln("@huanke TxPreEvent miner node")
+				self.commitNewWork()
 			}
 		}
 	}
@@ -270,6 +280,7 @@ func (self *worker) wait() {
 			block := result.Block
 			work := result.Work
 
+			glog.V(logger.Info).Infoln("@huanke worker.wait() ",  len(self.recv), block.Number(), self.fullValidation)
 			if self.fullValidation {
 				if _, err := self.chain.InsertChain(types.Blocks{block}); err != nil {
 					glog.V(logger.Error).Infoln("mining err", err)
@@ -318,10 +329,13 @@ func (self *worker) wait() {
 
 				// broadcast before waiting for validation
 				go func(block *types.Block, logs vm.Logs, receipts []*types.Receipt) {
+					fmt.Println("@huanke post *** NewMinedBlockEvent ", len(self.recv))
+					glog.V(logger.Info).Infoln("@huanke post *** NewMinedBlockEvent ",  block.Number())
 					self.mux.Post(core.NewMinedBlockEvent{Block: block})
 					self.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 
 					if stat == core.CanonStatTy {
+						glog.V(logger.Info).Infoln("@huanke post *** ChainHeadEvent ",  block.Number())
 						self.mux.Post(core.ChainHeadEvent{Block: block})
 						self.mux.Post(logs)
 					}
@@ -341,7 +355,7 @@ func (self *worker) wait() {
 				work.localMinedBlocks = newLocalMinedBlock(block.Number().Uint64(), work.localMinedBlocks)
 			}
 			glog.V(logger.Info).Infof("🔨  Mined %sblock (#%v / %x). %s", stale, block.Number(), block.Hash().Bytes()[:4], confirm)
-
+			//fmt.Println("@huanke & worker.wait()")
 			self.commitNewWork()
 		}
 	}
@@ -355,6 +369,7 @@ func (self *worker) push(work *Work) {
 	for agent := range self.agents {
 		atomic.AddInt32(&self.atWork, 1)
 		if ch := agent.Work(); ch != nil {
+			glog.V(logger.Info).Infof("@huanke 4times", len(self.agents))
 			ch <- work
 		}
 	}
@@ -497,8 +512,26 @@ func (self *worker) commitNewWork() {
 	if self.config.DAOForkSupport && self.config.DAOForkBlock != nil && self.config.DAOForkBlock.Cmp(header.Number) == 0 {
 		core.ApplyDAOHardFork(work.state)
 	}
-	txs := types.NewTransactionsByPriceAndNonce(self.eth.TxPool().Pending())
-	work.commitTransactions(self.mux, txs, self.gasPrice, self.chain)
+	pending:= self.eth.TxPool().Pending()
+	//---------------------Hack to mine one transaction once -------------------------------
+	glog.V(logger.Info).Infoln("@huanke ==========================> commitNewWork ", len(pending))
+	fmt.Println("@huanke ==========================> commitNewWork ", len(pending))
+	txCollection:= make([]map[common.Address]types.Transactions, len(pending))
+	for key, value:= range pending {
+		oneTx := make(map[common.Address]types.Transactions)
+		oneTx[key]=value
+		txCollection = append(txCollection, oneTx)
+		fmt.Println("@huanke  --> ",key, value)
+	}
+	if len(pending)>0 {
+		fmt.Println("@huanke ===============> commitTransactions ", txCollection[len(pending):][0])
+		txs := types.NewTransactionsByPriceAndNonce(txCollection[len(pending):][0])
+		work.commitTransactions(self.mux, txs, self.gasPrice, self.chain)
+	}else {
+		txs := types.NewTransactionsByPriceAndNonce(pending)
+		work.commitTransactions(self.mux, txs, self.gasPrice, self.chain)
+	}
+	//---------------------Hack to mine one transaction once -------------------------------
 
 	self.eth.TxPool().RemoveBatch(work.lowGasTxs)
 	self.eth.TxPool().RemoveBatch(work.failedTxs)
@@ -541,7 +574,13 @@ func (self *worker) commitNewWork() {
 		glog.V(logger.Info).Infof("commit new work on block %v with %d txs & %d uncles. Took %v\n", work.Block.Number(), work.tcount, len(uncles), time.Since(tstart))
 		self.logLocalMinedBlocks(work, previous)
 	}
-	self.push(work)
+	//huanke wants to mine when there are transactions
+	if len(self.eth.TxPool().Pending()) >0 {
+		fmt.Println("@huanke **************push(work)", work.Block.Number(), len(self.eth.TxPool().Pending()))
+		glog.V(logger.Info).Infoln("@huanke **************push(work)", work.Block.Number(), len(self.eth.TxPool().Pending()))
+		self.push(work)
+	}
+	//self.push(work)
 }
 
 func (self *worker) commitUncle(work *Work, uncle *types.Header) error {

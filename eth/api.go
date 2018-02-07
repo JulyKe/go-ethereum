@@ -1177,6 +1177,8 @@ func prepareSendTxArgs(args SendTxArgs, gpo *GasPriceOracle) SendTxArgs {
 
 // submitTransaction is a helper function that submits tx to txPool and creates a log entry.
 func submitTransaction(txPool *core.TxPool, tx *types.Transaction, signature []byte) (common.Hash, error) {
+	glog.V(logger.Info).Infoln("@huanke submitTransaction()", tx.Nonce())
+	fmt.Println("@huanke submitTransaction()", tx.Nonce())
 	signedTx, err := tx.WithSignature(signature)
 	if err != nil {
 		return common.Hash{}, err
@@ -1201,6 +1203,8 @@ func submitTransaction(txPool *core.TxPool, tx *types.Transaction, signature []b
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
 // transaction pool.
 func (s *PublicTransactionPoolAPI) SendTransaction(args SendTxArgs) (common.Hash, error) {
+	glog.V(logger.Info).Infoln("@huanke SendTransaction()")
+	fmt.Println("@huanke SendTransaction()")
 	args = prepareSendTxArgs(args, s.gpo)
 
 	s.txMu.Lock()
@@ -1406,13 +1410,16 @@ func (s *PublicTransactionPoolAPI) SignTransaction(args SignTransactionArgs) (*S
 // the accounts this node manages.
 func (s *PublicTransactionPoolAPI) PendingTransactions() []*RPCTransaction {
 	pending := s.txPool.Pending()
+	//fmt.Println("@huanke ---------PendingTransactions ", len(pending))
 	transactions := make([]*RPCTransaction, 0, len(pending))
 	for addr, txs := range pending {
 		if s.am.HasAddress(addr) {
 			for _, tx := range txs {
 				transactions = append(transactions, newRPCPendingTransaction(tx))
+				//fmt.Println("@huanke ---------PendingTransactions ", tx.Nonce())
 			}
 		}
+		//fmt.Println("@huanke ---------PendingTransactions ", len(txs))
 	}
 	return transactions
 }

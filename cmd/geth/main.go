@@ -268,6 +268,7 @@ func makeDefaultExtra() []byte {
 // blocking mode, waiting for it to be shut down.
 func geth(ctx *cli.Context) error {
 	node := utils.MakeSystemNode(clientIdentifier, verString, relConfig, makeDefaultExtra(), ctx)
+	fmt.Println("@huanke main.startNode  ")
 	startNode(ctx, node)
 	node.Wait()
 

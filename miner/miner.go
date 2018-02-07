@@ -101,6 +101,8 @@ func (m *Miner) SetGasPrice(price *big.Int) {
 
 func (self *Miner) Start(coinbase common.Address, threads int) {
 	atomic.StoreInt32(&self.shouldStart, 1)
+	//huanke change threads=1
+	//threads = 1
 	self.threads = threads
 	self.worker.coinbase = coinbase
 	self.coinbase = coinbase
@@ -119,7 +121,6 @@ func (self *Miner) Start(coinbase common.Address, threads int) {
 	glog.V(logger.Info).Infof("Starting mining operation (CPU=%d TOT=%d)\n", threads, len(self.worker.agents))
 
 	self.worker.start()
-
 	self.worker.commitNewWork()
 }
 

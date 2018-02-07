@@ -667,6 +667,7 @@ func MakeSystemNode(name, version string, relconf release.Config, extra []byte, 
 	accman := MakeAccountManager(ctx)
 	jitEnabled := ctx.GlobalBool(VMEnableJitFlag.Name)
 	ethConf := &eth.Config{
+		DataDir:         MustMakeDataDir(ctx), //huanke add for eth config to extract selfId in backend.go
 		ChainConfig:             MustMakeChainConfig(ctx),
 		FastSync:                ctx.GlobalBool(FastSyncFlag.Name),
 		BlockChainVersion:       ctx.GlobalInt(BlockchainVersionFlag.Name),
@@ -736,6 +737,7 @@ func MakeSystemNode(name, version string, relconf release.Config, extra []byte, 
 		Fatalf("Failed to create the protocol stack: %v", err)
 	}
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+		fmt.Println("@huanke return ethereum")
 		return eth.New(ctx, ethConf)
 	}); err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
@@ -750,6 +752,7 @@ func MakeSystemNode(name, version string, relconf release.Config, extra []byte, 
 	}); err != nil {
 		Fatalf("Failed to register the Geth release oracle service: %v", err)
 	}
+	fmt.Println("@huanke return Node")
 	return stack
 }
 
